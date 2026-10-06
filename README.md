@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Local control of the **weather-station display** built into smart bathroom mirrors that are managed
-with the **WiseMirror** mobile app (sold under brands such as **Alasta**, **BYECOLD** or **GS**).
+with the **WiseMirror** mobile app (sold under brands such as **Alasta**, **BYECOLD** or **GS Mirror**).
 
 Fully local: no cloud account, no internet connection needed. Home Assistant talks to each
 mirror directly over UDP on your LAN.
@@ -31,7 +31,7 @@ mirror directly over UDP on your LAN.
 | Brand | Model (as reported by the mirror) | Status |
 |---|---|---|
 | Alasta | `2M09`, firmware `V1.9.250215` | ✅ Tested |
-| BYECOLD, GS, and other mirrors set up with the WiseMirror app | `8J11`, `8J12`, `2K02`, `2M09` | ❔ Should work, not tested |
+| BYECOLD, GS Mirror, and other mirrors set up with the WiseMirror app | `8J11`, `8J12`, `2K02`, `2M09` | ❔ Should work, not tested |
 
 If your mirror is set up with the **WiseMirror** app, it very likely speaks the same protocol. Please
 [report whether it works](https://github.com/jorgediez/ha-wisemirror/issues/new?template=device_report.yml),
@@ -123,9 +123,9 @@ action: wisemirror.set_location
 target:
   device_id: <your mirror device>
 data:
-  name: León
-  latitude: 42.6028912
-  longitude: -5.5580577
+  name: Madrid
+  latitude: 40.4168
+  longitude: -3.7038
 ```
 
 If **Follow Home Assistant's home location** is on, a manual location will be overwritten the next
@@ -151,7 +151,7 @@ automation:
     actions:
       - action: number.set_value
         target:
-          entity_id: number.wisemirror_2m09_ceb8_display_brightness
+          entity_id: number.wisemirror_2m09_ceb8_display_brightness  # replace with your entity
         data:
           value: 5
 ```
@@ -205,7 +205,7 @@ REBUILD=1 scripts/test-docker.sh       # pick up a new Home Assistant release
 ## Disclaimer
 
 This is an unofficial, community project. It is not affiliated with or endorsed by the makers of the
-WiseMirror app, Alasta, BYECOLD, GS or any other brand. All trademarks belong to their respective
+WiseMirror app, Alasta, BYECOLD, GS Mirror or any other brand. All trademarks belong to their respective
 owners. Use at your own risk.
 
 ## License

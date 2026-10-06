@@ -5,12 +5,12 @@ set_location:
   fields:
     name:
       required: true
-      example: "León"
+      example: "Madrid"
       selector:
         text:
     latitude:
       required: true
-      example: 42.6028912
+      example: 40.4168
       selector:
         number:
           min: -90
@@ -19,7 +19,7 @@ set_location:
           mode: box
     longitude:
       required: true
-      example: -5.5580577
+      example: -3.7038
       selector:
         number:
           min: -180

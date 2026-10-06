@@ -13,7 +13,7 @@ body:
     id: brand
     attributes:
       label: Mirror brand and model
-      description: The brand on the box (Alasta, BYECOLD, GS, ...) and the model shown in Home Assistant (e.g. 2M09).
+      description: The brand on the box (Alasta, BYECOLD, GS Mirror, ...) and the model shown in Home Assistant (e.g. 2M09).
     validations:
       required: true
   - type: input
