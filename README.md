@@ -26,6 +26,10 @@ mirror directly over UDP on your LAN.
 - **Diagnostics** download, with sensitive data (IP, MAC, location) redacted.
 - English and Spanish translations.
 
+Each mirror shows up in Home Assistant as a device with its controls, sensors and configuration:
+
+<img src="https://raw.githubusercontent.com/jorgediez/ha-wisemirror/main/docs/images/ha-device-page.png" alt="WiseMirror device page in Home Assistant" width="600">
+
 ## Compatibility
 
 | Brand | Model (as reported by the mirror) | Status |
