@@ -193,8 +193,14 @@ ruff check . && ruff format --check .
 pytest
 ```
 
-The Home Assistant test harness requires Linux or macOS (on Windows, use WSL or the GitHub Actions
-results).
+The Home Assistant test harness requires Linux or macOS. With Docker you can run the suite on any
+OS, against both the oldest supported and the latest Home Assistant (the same matrix as CI):
+
+```bash
+scripts/test-docker.sh                 # both versions
+scripts/test-docker.sh min -k options  # one version ("min" or "latest"), extra pytest args
+REBUILD=1 scripts/test-docker.sh       # pick up a new Home Assistant release
+```
 
 ## Disclaimer
 

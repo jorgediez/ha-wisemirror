@@ -26,6 +26,11 @@ from custom_components.wisemirror.const import (
 from .conftest import BSSID, HOST
 
 
+def _device(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry:
+    (device,) = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    return device
+
+
 async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -38,8 +43,8 @@ async def test_setup_and_unload(
     await _setup(hass, config_entry)
     assert config_entry.state is ConfigEntryState.LOADED
 
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, BSSID)})
-    assert device is not None
+    device = _device(hass, config_entry)
+    assert (DOMAIN, BSSID) in device.identifiers
     assert device.name == "WiseMirror 2M09 (CEB8)"
     assert device.model == "2M09"
     assert device.sw_version == "V1.9.250215"
@@ -121,7 +126,7 @@ async def test_set_location_service(
 ) -> None:
     await hass.config.async_update(latitude=42.6, longitude=-5.5)
     await _setup(hass, config_entry)
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, BSSID)})
+    device = _device(hass, config_entry)
 
     await hass.services.async_call(
         DOMAIN,
@@ -184,7 +189,7 @@ async def test_relocates_after_ip_change(
     ]
     freezer.tick(61)
     async_fire_time_changed(hass)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert polled_hosts == [HOST, "192.168.1.77"]
     assert coordinator.last_update_success
@@ -203,7 +208,7 @@ async def test_offline_marks_entities_unavailable(
     mock_device.discover.return_value = []
     freezer.tick(61)
     async_fire_time_changed(hass)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_temperature").state == "unavailable"
     assert hass.states.get("binary_sensor.wisemirror_2m09_ceb8_connectivity").state == "off"

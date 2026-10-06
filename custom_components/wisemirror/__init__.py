@@ -97,12 +97,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Reload when the per-mirror options change (not on data-only updates such as
-    # the host being rewritten after an IP change).
-    applied_options = dict(entry.options)
+    # Reload when the effective per-mirror options change (not on data-only updates
+    # such as the host being rewritten after an IP change, nor when an unset option
+    # is first saved with its default value).
+    use_ha_location = entry.options.get(CONF_USE_HA_LOCATION, DEFAULT_USE_HA_LOCATION)
 
     async def _async_entry_updated(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -> None:
-        if dict(entry.options) != applied_options:
+        if entry.options.get(CONF_USE_HA_LOCATION, DEFAULT_USE_HA_LOCATION) != use_ha_location:
             await hass.config_entries.async_reload(entry.entry_id)
 
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
@@ -170,6 +171,11 @@ def _config_entry_ids_for_targets(hass: HomeAssistant, call: ServiceCall) -> set
 
     entry_ids: set[str] = set()
     for device_id in device_ids:
-        if device := dev_reg.async_get(device_id):
+        if not (device := dev_reg.async_get(device_id)):
+            continue
+        if hasattr(device, "config_entry_id"):  # HA 2026.x+: one entry per device
+            if device.config_entry_id:
+                entry_ids.add(device.config_entry_id)
+        else:  # older HA
             entry_ids.update(device.config_entries)
     return entry_ids
