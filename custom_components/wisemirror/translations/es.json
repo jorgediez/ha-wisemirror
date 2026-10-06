@@ -1,0 +1,103 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "WiseMirror",
+        "description": "Selecciona un espejo encontrado en tu red.",
+        "data": { "device": "Espejo" }
+      },
+      "manual": {
+        "title": "Añadir WiseMirror por IP",
+        "description": "Introduce la dirección IP del espejo (se recomienda una reserva DHCP).",
+        "data": { "host": "Dirección IP" },
+        "data_description": {
+          "host": "El espejo debe estar ya conectado a tu wifi mediante la app WiseMirror."
+        }
+      }
+    },
+    "error": { "cannot_connect": "No se pudo contactar con un espejo en esa dirección." },
+    "abort": { "already_configured": "Este espejo ya está configurado." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de WiseMirror",
+        "data": {
+          "scan_interval": "Intervalo de sondeo (segundos)",
+          "use_ha_location": "Seguir la ubicación de casa de Home Assistant"
+        },
+        "data_description": {
+          "scan_interval": "Cada cuánto se consulta a los espejos para detectar cambios. Se aplica a todos los dispositivos WiseMirror. Por defecto, 60 s.",
+          "use_ha_location": "Si está activado, la ubicación meteorológica del espejo se mantiene sincronizada con la ubicación de casa configurada en Home Assistant. Desactívalo para fijarla manualmente (con la acción Establecer ubicación)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "device": {
+      "options": { "manual": "Introducir la dirección IP manualmente…" }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connectivity": { "name": "Conectividad" }
+    },
+    "sensor": {
+      "indoor_temperature": { "name": "Temperatura interior" },
+      "humidity": { "name": "Humedad interior" },
+      "location": { "name": "Ubicación meteorológica" },
+      "ip_address": { "name": "Dirección IP" }
+    },
+    "number": {
+      "brightness": { "name": "Brillo de la pantalla" },
+      "night_brightness": { "name": "Brillo nocturno" }
+    },
+    "switch": {
+      "night_mode": { "name": "Modo nocturno" },
+      "two_day_weather": { "name": "Tiempo de dos días" },
+      "hour_24": { "name": "Reloj de 24 horas" },
+      "day_month": { "name": "Fecha en orden día-mes" },
+      "key_tone": { "name": "Sonido de teclas" }
+    },
+    "select": {
+      "temperature_unit": {
+        "name": "Unidad de temperatura",
+        "state": { "celsius": "Celsius", "fahrenheit": "Fahrenheit" }
+      },
+      "weather_server": {
+        "name": "Fuente meteorológica",
+        "state": {
+          "auto": "Automática",
+          "no1": "No1",
+          "no2": "No2",
+          "no3": "No3",
+          "no4": "No4",
+          "no5": "No5"
+        }
+      }
+    },
+    "time": {
+      "night_start": { "name": "Inicio del modo nocturno" },
+      "night_end": { "name": "Fin del modo nocturno" }
+    }
+  },
+  "exceptions": {
+    "command_not_acknowledged": {
+      "message": "El espejo en {host} no confirmó la orden."
+    },
+    "no_target_mirror": {
+      "message": "Ningún dispositivo WiseMirror cargado coincide con el destino seleccionado."
+    }
+  },
+  "services": {
+    "set_location": {
+      "name": "Establecer ubicación",
+      "description": "Establece la ubicación meteorológica del espejo (nombre de la ciudad y coordenadas).",
+      "fields": {
+        "name": { "name": "Nombre de la ciudad", "description": "Nombre a mostrar para la ubicación." },
+        "latitude": { "name": "Latitud", "description": "Latitud en grados decimales." },
+        "longitude": { "name": "Longitud", "description": "Longitud en grados decimales." }
+      }
+    }
+  }
+}

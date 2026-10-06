@@ -1,0 +1,48 @@
+name: Bug report
+description: Something doesn't work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: brand
+    attributes:
+      label: Mirror brand and model
+      description: The brand on the box (Alasta, BYECOLD, GS, ...) and the model shown in Home Assistant (e.g. 2M09).
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Mirror firmware
+      description: Shown as the device's firmware in Home Assistant (e.g. V1.9.250215).
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: >-
+        Settings → Devices & services → WiseMirror → ⋮ → Download diagnostics, and attach the file.
+        (IP, MAC and location are redacted automatically.)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant lines from the Home Assistant log, with debug logging enabled if possible.
+      render: text

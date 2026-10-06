@@ -1,0 +1,3 @@
+# Pins Home Assistant itself; bump to test against a newer release.
+pytest-homeassistant-custom-component
+ruff

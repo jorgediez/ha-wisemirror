@@ -1,0 +1,38 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "connectivity": { "default": "mdi:wifi" }
+    },
+    "sensor": {
+      "indoor_temperature": { "default": "mdi:home-thermometer" },
+      "humidity": { "default": "mdi:water-percent" },
+      "location": { "default": "mdi:map-marker" },
+      "ip_address": { "default": "mdi:ip-network" }
+    },
+    "number": {
+      "brightness": { "default": "mdi:brightness-6" },
+      "night_brightness": { "default": "mdi:brightness-3" }
+    },
+    "switch": {
+      "night_mode": {
+        "default": "mdi:weather-night",
+        "state": { "off": "mdi:weather-night-partly-cloudy" }
+      },
+      "two_day_weather": { "default": "mdi:weather-partly-cloudy" },
+      "hour_24": { "default": "mdi:clock-outline" },
+      "day_month": { "default": "mdi:calendar" },
+      "key_tone": { "default": "mdi:volume-high" }
+    },
+    "select": {
+      "temperature_unit": { "default": "mdi:thermometer" },
+      "weather_server": { "default": "mdi:cloud-search" }
+    },
+    "time": {
+      "night_start": { "default": "mdi:weather-sunset-down" },
+      "night_end": { "default": "mdi:weather-sunset-up" }
+    }
+  },
+  "services": {
+    "set_location": { "service": "mdi:map-marker-plus" }
+  }
+}

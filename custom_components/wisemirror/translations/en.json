@@ -1,0 +1,103 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "WiseMirror",
+        "description": "Select a mirror found on your network.",
+        "data": { "device": "Mirror" }
+      },
+      "manual": {
+        "title": "Add WiseMirror by IP",
+        "description": "Enter the mirror's IP address (a DHCP reservation is recommended).",
+        "data": { "host": "IP address" },
+        "data_description": {
+          "host": "The mirror must already be connected to your Wi-Fi with the WiseMirror app."
+        }
+      }
+    },
+    "error": { "cannot_connect": "Could not reach a mirror at that address." },
+    "abort": { "already_configured": "This mirror is already configured." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WiseMirror options",
+        "data": {
+          "scan_interval": "Poll interval (seconds)",
+          "use_ha_location": "Follow Home Assistant's home location"
+        },
+        "data_description": {
+          "scan_interval": "How often every mirror is polled for changes. Applies to all WiseMirror devices (integration-wide). Default 60 s.",
+          "use_ha_location": "When on, the mirror's weather location is kept in sync with Home Assistant's configured home location. Turn off to set the location manually (via the Set location action)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "device": {
+      "options": { "manual": "Enter IP address manually…" }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connectivity": { "name": "Connectivity" }
+    },
+    "sensor": {
+      "indoor_temperature": { "name": "Indoor temperature" },
+      "humidity": { "name": "Indoor humidity" },
+      "location": { "name": "Weather location" },
+      "ip_address": { "name": "IP address" }
+    },
+    "number": {
+      "brightness": { "name": "Display brightness" },
+      "night_brightness": { "name": "Night brightness" }
+    },
+    "switch": {
+      "night_mode": { "name": "Night mode" },
+      "two_day_weather": { "name": "Two-day weather" },
+      "hour_24": { "name": "24-hour clock" },
+      "day_month": { "name": "Day-month date order" },
+      "key_tone": { "name": "Key tone" }
+    },
+    "select": {
+      "temperature_unit": {
+        "name": "Temperature unit",
+        "state": { "celsius": "Celsius", "fahrenheit": "Fahrenheit" }
+      },
+      "weather_server": {
+        "name": "Weather source",
+        "state": {
+          "auto": "Auto",
+          "no1": "No1",
+          "no2": "No2",
+          "no3": "No3",
+          "no4": "No4",
+          "no5": "No5"
+        }
+      }
+    },
+    "time": {
+      "night_start": { "name": "Night mode start" },
+      "night_end": { "name": "Night mode end" }
+    }
+  },
+  "exceptions": {
+    "command_not_acknowledged": {
+      "message": "The mirror at {host} did not acknowledge the command."
+    },
+    "no_target_mirror": {
+      "message": "No loaded WiseMirror device matches the selected target."
+    }
+  },
+  "services": {
+    "set_location": {
+      "name": "Set location",
+      "description": "Sets the mirror's weather location (city name and coordinates).",
+      "fields": {
+        "name": { "name": "City name", "description": "Display name for the location." },
+        "latitude": { "name": "Latitude", "description": "Latitude in decimal degrees." },
+        "longitude": { "name": "Longitude", "description": "Longitude in decimal degrees." }
+      }
+    }
+  }
+}
