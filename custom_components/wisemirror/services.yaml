@@ -1,6 +1,6 @@
 set_location:
   target:
-    device:
+    entity:
       integration: wisemirror
   fields:
     name:
