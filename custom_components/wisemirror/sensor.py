@@ -23,15 +23,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    entities: list[SensorEntity] = [
-        IndoorTemperatureSensor(coordinator),
-        LocationSensor(coordinator),
-        IpSensor(coordinator),
-    ]
-    # Models without a humidity sensor report 0; only skip it when we know that.
-    if coordinator.data.get("has_humidity_sensor", True):
-        entities.append(HumiditySensor(coordinator))
-    async_add_entities(entities)
+    async_add_entities(
+        [
+            IndoorTemperatureSensor(coordinator),
+            HumiditySensor(coordinator),
+            LocationSensor(coordinator),
+            IpSensor(coordinator),
+        ]
+    )
 
 
 class IndoorTemperatureSensor(WiseMirrorEntity, SensorEntity):
@@ -56,6 +55,11 @@ class HumiditySensor(WiseMirrorEntity, SensorEntity):
 
     def __init__(self, coordinator: WiseMirrorCoordinator) -> None:
         super().__init__(coordinator, "humidity")
+        # Models without a humidity sensor report 0: disable the entity by default
+        # there (users can still enable it). Only applies when first registered.
+        self._attr_entity_registry_enabled_default = bool(
+            coordinator.data.get("has_humidity_sensor", True)
+        )
 
     @property
     def native_value(self) -> int | None:

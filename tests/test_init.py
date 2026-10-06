@@ -9,7 +9,7 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -62,7 +62,7 @@ async def test_setup_not_ready(
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
-async def test_no_humidity_entity_without_sensor(
+async def test_humidity_disabled_by_default_without_sensor(
     hass: HomeAssistant,
     mock_device: MagicMock,
     state: dict[str, Any],
@@ -71,7 +71,11 @@ async def test_no_humidity_entity_without_sensor(
     state["has_humidity_sensor"] = False
     state["humidity"] = None
     await _setup(hass, config_entry)
-    assert hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_humidity") is None
+    entity_id = "sensor.wisemirror_2m09_ceb8_indoor_humidity"
+    entry = er.async_get(hass).async_get(entity_id)
+    assert entry is not None
+    assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert hass.states.get(entity_id) is None
 
 
 async def test_follows_ha_location(

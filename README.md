@@ -37,8 +37,9 @@ If your mirror is set up with the **WiseMirror** app, it very likely speaks the 
 [report whether it works](https://github.com/jorgediez/ha-wisemirror/issues/new?template=device_report.yml),
 including any partial results. Feedback is very welcome!
 
-Some features depend on the hardware: models without a humidity sensor won't get a humidity
-entity, and the key tone switch is disabled by default because not all models support it.
+Some features depend on the hardware: on models that report no humidity reading, the humidity
+entity is disabled by default (you can still enable it), and the key tone switch is disabled by
+default because not all models support it.
 
 ## Prerequisites
 
@@ -94,7 +95,7 @@ Open **Configure** on any mirror:
 |---|---|---|
 | Binary sensor | Connectivity | Online/offline. Stays available when the mirror is unreachable, so you can use it in automations. Diagnostic. |
 | Sensor | Indoor temperature | °C from the mirror (HA converts it to your unit system). |
-| Sensor | Indoor humidity | Only created on models with a humidity sensor. |
+| Sensor | Indoor humidity | Disabled by default on models that report no humidity reading. |
 | Sensor | Weather location | Diagnostic. |
 | Sensor | IP address | Diagnostic, disabled by default. |
 | Number | Display brightness | 0–100. |
