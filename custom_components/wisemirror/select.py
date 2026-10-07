@@ -23,7 +23,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities([TemperatureUnitSelect(coordinator), WeatherServerSelect(coordinator)])
+    async_add_entities(
+        [TemperatureUnitSelect(coordinator), WeatherServerSelect(coordinator)]
+    )
 
 
 class TemperatureUnitSelect(WiseMirrorEntity, SelectEntity):

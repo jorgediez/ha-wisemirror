@@ -45,7 +45,9 @@ def _build_frame(wire_opcode: int, payload: bytes, sub: int = 0) -> bytes:
     hi, lo = (n >> 8) & 0xFF, n & 0xFF
     chk = (wire_opcode + hi + lo + sub + 1 + sum(payload)) & 0xFF
     return (
-        bytes([0xA5, wire_opcode & 0xFF, hi, lo, sub & 0xFF, 0x01]) + payload + bytes([chk, 0x5A])
+        bytes([0xA5, wire_opcode & 0xFF, hi, lo, sub & 0xFF, 0x01])
+        + payload
+        + bytes([chk, 0x5A])
     )
 
 
@@ -68,7 +70,10 @@ def _parse_probe(text: str) -> dict | None:
     head = fields[0]
     if not any(tag in head for tag in MODEL_TAGS):
         return None
-    model = next((t for t in head.split() if any(tag in t for tag in MODEL_TAGS)), head.split()[-1])
+    model = next(
+        (t for t in head.split() if any(tag in t for tag in MODEL_TAGS)),
+        head.split()[-1],
+    )
     out = {
         "model": model,
         "bssid": fields[-2],
@@ -209,7 +214,9 @@ class WiseMirrorDevice:
             # indoor temperature, normalised to °C
             if probe and probe.get("temp") is not None:
                 t = probe["temp"]
-                state["temperature_c"] = round((t - 32) * 5 / 9, 1) if unit == 0 else float(t)
+                state["temperature_c"] = (
+                    round((t - 32) * 5 / 9, 1) if unit == 0 else float(t)
+                )
         if weather and weather[0] == 0xA5:
             wf = weather[6]
             state["two_day"] = bool(wf & 1)
@@ -250,7 +257,9 @@ class WiseMirrorDevice:
         # payload = [rollScreen|(todayWeather<<1), server, 0, 0]; todayWeather kept 0
         return self._ok(40, bytes([1 if two_day else 0, server_raw & 0xFF, 0, 0]))
 
-    def set_location(self, name: str, lat: float, lon: float, accu_key: str = "") -> bool:
+    def set_location(
+        self, name: str, lat: float, lon: float, accu_key: str = ""
+    ) -> bool:
         body = f"{urllib.parse.quote(name)}({lat},{lon})({accu_key})".encode()
         payload = bytes([(len(body) >> 8) & 0xFF, len(body) & 0xFF]) + body
         return self._ok(31, payload)

@@ -20,7 +20,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities([NightTime(coordinator, "night_start"), NightTime(coordinator, "night_end")])
+    async_add_entities(
+        [NightTime(coordinator, "night_start"), NightTime(coordinator, "night_end")]
+    )
 
 
 class NightTime(WiseMirrorEntity, TimeEntity):

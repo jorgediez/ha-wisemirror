@@ -76,7 +76,9 @@ class WiseMirrorSwitch(WiseMirrorEntity, SwitchEntity):
     entity_description: WiseMirrorSwitchDescription
 
     def __init__(
-        self, coordinator: WiseMirrorCoordinator, description: WiseMirrorSwitchDescription
+        self,
+        coordinator: WiseMirrorCoordinator,
+        description: WiseMirrorSwitchDescription,
     ) -> None:
         super().__init__(coordinator, description.key)
         self.entity_description = description

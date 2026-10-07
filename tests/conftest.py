@@ -98,8 +98,12 @@ def mock_device(state: dict[str, Any]) -> Generator[MagicMock]:
         getattr(mocks, name).return_value = True
         patches.append(patch.object(WiseMirrorDevice, name, getattr(mocks, name)))
     mocks.discover.return_value = [dict(DISCOVERED)]
-    patches.append(patch("custom_components.wisemirror.config_flow.discover", mocks.discover))
-    patches.append(patch("custom_components.wisemirror.coordinator.discover", mocks.discover))
+    patches.append(
+        patch("custom_components.wisemirror.config_flow.discover", mocks.discover)
+    )
+    patches.append(
+        patch("custom_components.wisemirror.coordinator.discover", mocks.discover)
+    )
     for p in patches:
         p.start()
     yield mocks

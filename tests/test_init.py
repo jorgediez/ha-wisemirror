@@ -50,7 +50,10 @@ async def test_setup_and_unload(
     assert device.sw_version == "V1.9.250215"
     assert (dr.CONNECTION_NETWORK_MAC, BSSID) in device.connections
 
-    assert hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_temperature").state == "25.0"
+    assert (
+        hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_temperature").state
+        == "25.0"
+    )
     assert hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_humidity").state == "45"
 
     assert await hass.config_entries.async_unload(config_entry.entry_id)
@@ -86,7 +89,9 @@ async def test_humidity_disabled_by_default_without_sensor(
 async def test_follows_ha_location(
     hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
 ) -> None:
-    await hass.config.async_update(latitude=40.4168, longitude=-3.7038, location_name="Casa")
+    await hass.config.async_update(
+        latitude=40.4168, longitude=-3.7038, location_name="Casa"
+    )
     await _setup(hass, config_entry)
     mock_device.set_location.assert_called_once_with("Casa", 40.4168, -3.7038)
 
@@ -210,5 +215,11 @@ async def test_offline_marks_entities_unavailable(
     async_fire_time_changed(hass)
     await hass.async_block_till_done(wait_background_tasks=True)
 
-    assert hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_temperature").state == "unavailable"
-    assert hass.states.get("binary_sensor.wisemirror_2m09_ceb8_connectivity").state == "off"
+    assert (
+        hass.states.get("sensor.wisemirror_2m09_ceb8_indoor_temperature").state
+        == "unavailable"
+    )
+    assert (
+        hass.states.get("binary_sensor.wisemirror_2m09_ceb8_connectivity").state
+        == "off"
+    )

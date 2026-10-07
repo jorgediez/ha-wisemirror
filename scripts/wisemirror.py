@@ -14,6 +14,7 @@ Usage:
     python wisemirror.py raw --ip 192.168.1.50 4 01          # logical opcode 4, payload hex
     python wisemirror.py temp                       # JSON: indoor temp/humidity (for HA)
 """
+
 import argparse
 import json
 import socket
@@ -22,16 +23,28 @@ import urllib.parse
 
 BCAST = "255.255.255.255"
 DISCOVERY_PORT = 8000
-CONTROL_PORT = 8001          # UDP; commands + ack (WifiBaseManager.r)
+CONTROL_PORT = 8001  # UDP; commands + ack (WifiBaseManager.r)
 PROBE_NEW = b"Are you a new device that link to LEDWiFi"
 PROBE_TEMP = b"What is the temperature of LEDWifi"
 MODEL_TAGS = ("8J11", "8J12", "2K02", "2M09")
 
 # logical id -> wire opcode (a0.a.e); only the ones we expose
 LOGICAL_TO_WIRE = {
-    1: 0x01, 2: 0x02, 3: 0x03, 4: 0x04, 6: 0x06,
-    31: 0x0B, 32: 0x0C, 33: 0x0D, 34: 0x0E, 35: 0x0F,
-    36: 0x10, 40: 0x30, 41: 0x16, 44: 0x31, 0: 0x15,
+    1: 0x01,
+    2: 0x02,
+    3: 0x03,
+    4: 0x04,
+    6: 0x06,
+    31: 0x0B,
+    32: 0x0C,
+    33: 0x0D,
+    34: 0x0E,
+    35: 0x0F,
+    36: 0x10,
+    40: 0x30,
+    41: 0x16,
+    44: 0x31,
+    0: 0x15,
 }
 
 
@@ -40,7 +53,11 @@ def build_frame(wire_opcode: int, payload: bytes, sub: int = 0) -> bytes:
     n = len(payload)
     hi, lo = (n >> 8) & 0xFF, n & 0xFF
     chk = (wire_opcode + hi + lo + sub + 1 + sum(payload)) & 0xFF
-    return bytes([0xA5, wire_opcode & 0xFF, hi, lo, sub & 0xFF, 0x01]) + payload + bytes([chk, 0x5A])
+    return (
+        bytes([0xA5, wire_opcode & 0xFF, hi, lo, sub & 0xFF, 0x01])
+        + payload
+        + bytes([chk, 0x5A])
+    )
 
 
 def parse_reply(text: str):
@@ -53,18 +70,20 @@ def parse_reply(text: str):
     if "," in text:
         main, hum = text.split(",", 1)
         try:
-            humidity = int(hum)          # raw; app clamps to 1..99 for display
+            humidity = int(hum)  # raw; app clamps to 1..99 for display
         except ValueError:
             humidity = None
     fields = main.split("+")
     if len(fields) < 2:
         return None
-    head = fields[0]                     # e.g. "I'm 2M09"
+    head = fields[0]  # e.g. "I'm 2M09"
     if not any(tag in head for tag in MODEL_TAGS):
         return None
     # model is the head token matching a known tag (a literal "I'm" prefixes it)
-    model = next((t for t in head.split() if any(tag in t for tag in MODEL_TAGS)),
-                 head.split()[-1])
+    model = next(
+        (t for t in head.split() if any(tag in t for tag in MODEL_TAGS)),
+        head.split()[-1],
+    )
     out = {
         "model": model,
         "bssid": fields[-2],
@@ -107,8 +126,9 @@ def discover(probe: bytes = PROBE_TEMP, listen_port: int = 4026, timeout: float 
     return found
 
 
-def send_command(ip: str, logical_id: int, payload: bytes,
-                 timeout: float = 1.0, retries: int = 4):
+def send_command(
+    ip: str, logical_id: int, payload: bytes, timeout: float = 1.0, retries: int = 4
+):
     """UDP to mirror:8001 with one framed command; wait for ack (WifiBaseManager.r).
 
     Returns (ok, ack_bytes): ok is True when the mirror echoes ack[5]==1 and the
@@ -145,31 +165,38 @@ def area_payload(name: str, lat: float, lon: float, accu_key: str = "") -> bytes
 
 # name -> (logical_id, payload-builder from CLI args)
 SETTERS = {
-    "keytone":    (1,  lambda a: bytes([int(a[0])])),
-    "hour24":     (2,  lambda a: bytes([int(a[0])])),     # 0=12h, 1=24h
-    "datefmt":    (3,  lambda a: bytes([int(a[0])])),     # 0=MM/DD, 1=DD/MM
-    "tempunit":   (4,  lambda a: bytes([int(a[0])])),     # 0=°F, 1=°C (confirmed on hw)
-    "brightness": (6,  lambda a: bytes([max(0, min(100, int(a[0])))])),
-    "sleepmode":  (32, lambda a: bytes([int(a[0])])),
-    "sleeptime":  (33, lambda a: bytes([int(a[0]), int(a[1]), int(a[2]), int(a[3])])),
-    "light":      (34, lambda a: bytes([int(a[0])])),
-    "weeklang":   (44, lambda a: bytes([int(a[0])])),
+    "keytone": (1, lambda a: bytes([int(a[0])])),
+    "hour24": (2, lambda a: bytes([int(a[0])])),  # 0=12h, 1=24h
+    "datefmt": (3, lambda a: bytes([int(a[0])])),  # 0=MM/DD, 1=DD/MM
+    "tempunit": (4, lambda a: bytes([int(a[0])])),  # 0=°F, 1=°C (confirmed on hw)
+    "brightness": (6, lambda a: bytes([max(0, min(100, int(a[0])))])),
+    "sleepmode": (32, lambda a: bytes([int(a[0])])),
+    "sleeptime": (33, lambda a: bytes([int(a[0]), int(a[1]), int(a[2]), int(a[3])])),
+    "light": (34, lambda a: bytes([int(a[0])])),
+    "weeklang": (44, lambda a: bytes([int(a[0])])),
     "readsettings": (36, lambda a: bytes([0])),
-    "area":       (31, lambda a: area_payload(a[0], float(a[1]), float(a[2]),
-                                              a[3] if len(a) > 3 else "")),
+    "area": (
+        31,
+        lambda a: area_payload(
+            a[0], float(a[1]), float(a[2]), a[3] if len(a) > 3 else ""
+        ),
+    ),
     # weather: z.d.a(rollScreen, todayWeather, server) -> [bit0|bit1<<1, server, 0, 0]
     #   bit0 rollScreen = "weather for two days" display toggle (1=on)
     #   bit1 todayWeather = separate flag, not exposed in app UI (keep 0)
     #   server: 255=Auto, 0..4 = No1..No5
     # args: <twoday 0|1> [server]   (todayWeather forced 0)
-    "weather":    (40, lambda a: bytes([int(a[0]) & 1,
-                                        int(a[1]) if len(a) > 1 else 255, 0, 0])),
+    "weather": (
+        40,
+        lambda a: bytes([int(a[0]) & 1, int(a[1]) if len(a) > 1 else 255, 0, 0]),
+    ),
 }
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("discover")

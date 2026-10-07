@@ -29,7 +29,9 @@ async def async_get_scan_interval(hass: HomeAssistant) -> int:
         saved = await store.async_load() or {}
         cache = {
             "store": store,
-            CONF_SCAN_INTERVAL: saved.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS),
+            CONF_SCAN_INTERVAL: saved.get(
+                CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS
+            ),
         }
         hass.data[GLOBAL_DATA_KEY] = cache
     return cache[CONF_SCAN_INTERVAL]

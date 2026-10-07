@@ -22,12 +22,18 @@ from custom_components.wisemirror.const import (
 from .conftest import BSSID, HOST, MODEL
 
 
-async def test_user_picks_discovered_mirror(hass: HomeAssistant, mock_device: MagicMock) -> None:
-    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+async def test_user_picks_discovered_mirror(
+    hass: HomeAssistant, mock_device: MagicMock
+) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
 
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"device": BSSID})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"device": BSSID}
+    )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "WiseMirror 2M09 (CEB8)"
     assert result["data"] == {CONF_HOST: HOST, CONF_BSSID: BSSID, CONF_MODEL: MODEL}
@@ -35,15 +41,23 @@ async def test_user_picks_discovered_mirror(hass: HomeAssistant, mock_device: Ma
 
 
 async def test_user_chooses_manual(hass: HomeAssistant, mock_device: MagicMock) -> None:
-    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"device": "manual"})
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"device": "manual"}
+    )
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "manual"
 
 
-async def test_manual_when_nothing_discovered(hass: HomeAssistant, mock_device: MagicMock) -> None:
+async def test_manual_when_nothing_discovered(
+    hass: HomeAssistant, mock_device: MagicMock
+) -> None:
     mock_device.discover.return_value = []
-    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "manual"
 
@@ -69,7 +83,9 @@ async def test_manual_already_configured_updates_host(
 ) -> None:
     config_entry.add_to_hass(hass)
     # the configured mirror is filtered out of discovery -> straight to manual
-    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
     assert result["step_id"] == "manual"
 
     mock_device.poll.side_effect = None

@@ -25,8 +25,12 @@ async def setup_mirror(
     return mock_device
 
 
-async def _call(hass: HomeAssistant, domain: str, service: str, entity: str, **data: Any) -> None:
-    await hass.services.async_call(domain, service, {ATTR_ENTITY_ID: entity, **data}, blocking=True)
+async def _call(
+    hass: HomeAssistant, domain: str, service: str, entity: str, **data: Any
+) -> None:
+    await hass.services.async_call(
+        domain, service, {ATTR_ENTITY_ID: entity, **data}, blocking=True
+    )
 
 
 async def test_states(hass: HomeAssistant, setup_mirror: MagicMock) -> None:
@@ -72,9 +76,23 @@ async def test_states(hass: HomeAssistant, setup_mirror: MagicMock) -> None:
         ),
         ("switch", "turn_on", "switch.{p}_night_mode", {}, "set_night_mode", (True,)),
         ("switch", "turn_off", "switch.{p}_24_hour_clock", {}, "set_hour24", (False,)),
-        ("switch", "turn_off", "switch.{p}_day_month_date_order", {}, "set_daymonth", (False,)),
+        (
+            "switch",
+            "turn_off",
+            "switch.{p}_day_month_date_order",
+            {},
+            "set_daymonth",
+            (False,),
+        ),
         # weather command keeps the current server (Auto = 255)
-        ("switch", "turn_on", "switch.{p}_two_day_weather", {}, "set_weather", (True, 255)),
+        (
+            "switch",
+            "turn_on",
+            "switch.{p}_two_day_weather",
+            {},
+            "set_weather",
+            (True, 255),
+        ),
         # ... and the current two-day flag (off); "no4" is raw 0
         (
             "select",
@@ -127,10 +145,14 @@ async def test_commands(
     assert setup_mirror.poll.call_count == polls + 1  # state refreshed after write
 
 
-async def test_command_not_acknowledged(hass: HomeAssistant, setup_mirror: MagicMock) -> None:
+async def test_command_not_acknowledged(
+    hass: HomeAssistant, setup_mirror: MagicMock
+) -> None:
     setup_mirror.set_brightness.return_value = False
     with pytest.raises(HomeAssistantError) as err:
-        await _call(hass, "number", "set_value", f"number.{PREFIX}_display_brightness", value=50)
+        await _call(
+            hass, "number", "set_value", f"number.{PREFIX}_display_brightness", value=50
+        )
     assert err.value.translation_key == "command_not_acknowledged"
 
 

@@ -19,7 +19,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities([DayBrightnessNumber(coordinator), NightBrightnessNumber(coordinator)])
+    async_add_entities(
+        [DayBrightnessNumber(coordinator), NightBrightnessNumber(coordinator)]
+    )
 
 
 class _BaseBrightness(WiseMirrorEntity, NumberEntity):
@@ -41,7 +43,9 @@ class DayBrightnessNumber(_BaseBrightness):
         return self._data.get("brightness")
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_send(self.coordinator.device.set_brightness, int(value))
+        await self.coordinator.async_send(
+            self.coordinator.device.set_brightness, int(value)
+        )
 
 
 class NightBrightnessNumber(_BaseBrightness):
@@ -55,4 +59,6 @@ class NightBrightnessNumber(_BaseBrightness):
         return self._data.get("night_light")
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_send(self.coordinator.device.set_night_brightness, int(value))
+        await self.coordinator.async_send(
+            self.coordinator.device.set_night_brightness, int(value)
+        )
