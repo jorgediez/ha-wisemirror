@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+import voluptuous as vol
+
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -13,7 +15,6 @@ from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.typing import ConfigType
-import voluptuous as vol
 
 from .const import (
     ATTR_LATITUDE,

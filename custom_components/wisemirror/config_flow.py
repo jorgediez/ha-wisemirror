@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import voluptuous as vol
+
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -19,7 +21,6 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
 )
-import voluptuous as vol
 
 from .const import (
     CONF_BSSID,
@@ -51,16 +52,19 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self) -> None:
+        """Start with no mirrors discovered."""
         self._discovered: dict[str, dict[str, Any]] = {}
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Return the options flow."""
         return WiseMirrorOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Offer the mirrors found on the LAN, or manual entry."""
         if user_input is not None:
             choice = user_input[CONF_DEVICE]
             if choice == MANUAL:
@@ -110,6 +114,7 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_manual(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Add a mirror by its IP address."""
         errors: dict[str, str] = {}
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
@@ -144,6 +149,7 @@ class WiseMirrorOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Set the poll interval and whether to follow HA's location."""
         if user_input is not None:
             # Poll interval is integration-wide: persisted globally, applied to all mirrors.
             await async_set_scan_interval(

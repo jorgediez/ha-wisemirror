@@ -5,9 +5,6 @@ from __future__ import annotations
 from datetime import timedelta
 from unittest.mock import MagicMock
 
-from homeassistant.config_entries import SOURCE_USER
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wisemirror.const import (
@@ -18,6 +15,9 @@ from custom_components.wisemirror.const import (
     CONF_USE_HA_LOCATION,
     DOMAIN,
 )
+from homeassistant.config_entries import SOURCE_USER
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 
 from .conftest import BSSID, HOST, MODEL
 

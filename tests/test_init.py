@@ -6,10 +6,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -22,6 +18,10 @@ from custom_components.wisemirror.const import (
     DOMAIN,
     SERVICE_SET_LOCATION,
 )
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .conftest import BSSID, HOST
 

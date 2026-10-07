@@ -122,7 +122,9 @@ def discover(timeout: float = 2.5) -> list[dict]:
             d = _parse_probe(data.decode("utf-8", "ignore"))
             if d and d["bssid"] not in seen:
                 seen.add(d["bssid"])
-                if not d.get("address") or d["address"] == "0.0.0.0":
+                # A mirror without an address of its own reports 0.0.0.0; use the
+                # address the reply came from. A comparison, not a bind.
+                if not d.get("address") or d["address"] == "0.0.0.0":  # noqa: S104
                     d["address"] = addr[0]
                 found.append(d)
     finally:
@@ -230,36 +232,46 @@ class WiseMirrorDevice:
         return bool(self._send(logical_id, payload))
 
     def set_brightness(self, value: int) -> bool:
+        """Set the display brightness (0-100)."""
         return self._ok(6, bytes([max(0, min(100, int(value)))]))
 
     def set_night_brightness(self, value: int) -> bool:
+        """Set the night-mode brightness (0-100)."""
         return self._ok(34, bytes([max(0, min(100, int(value)))]))
 
     def set_hour24(self, on: bool) -> bool:
+        """Switch the clock between 24-hour and 12-hour."""
         return self._ok(2, bytes([1 if on else 0]))
 
     def set_daymonth(self, on: bool) -> bool:
+        """Show the date as day/month rather than month/day."""
         return self._ok(3, bytes([1 if on else 0]))
 
     def set_key_tone(self, on: bool) -> bool:
+        """Turn the key beep on or off."""
         return self._ok(1, bytes([1 if on else 0]))
 
     def set_unit_celsius(self, celsius: bool) -> bool:
+        """Show temperatures in Celsius rather than Fahrenheit."""
         return self._ok(4, bytes([1 if celsius else 0]))
 
     def set_night_mode(self, on: bool) -> bool:
+        """Turn night mode on or off."""
         return self._ok(32, bytes([1 if on else 0]))
 
     def set_night_time(self, sh: int, sm: int, eh: int, em: int) -> bool:
+        """Set when night mode starts and ends (hours, minutes)."""
         return self._ok(33, bytes([sh & 0xFF, sm & 0xFF, eh & 0xFF, em & 0xFF]))
 
     def set_weather(self, two_day: bool, server_raw: int) -> bool:
+        """Set two-day weather and the weather server in one command."""
         # payload = [rollScreen|(todayWeather<<1), server, 0, 0]; todayWeather kept 0
         return self._ok(40, bytes([1 if two_day else 0, server_raw & 0xFF, 0, 0]))
 
     def set_location(
         self, name: str, lat: float, lon: float, accu_key: str = ""
     ) -> bool:
+        """Set the location the mirror shows weather for."""
         body = f"{urllib.parse.quote(name)}({lat},{lon})({accu_key})".encode()
         payload = bytes([(len(body) >> 8) & 0xFF, len(body) & 0xFF]) + body
         return self._ok(31, payload)

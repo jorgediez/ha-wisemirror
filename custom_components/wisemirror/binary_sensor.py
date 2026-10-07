@@ -21,6 +21,7 @@ async def async_setup_entry(
     entry: WiseMirrorConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the connectivity binary sensor."""
     async_add_entities([MirrorConnectivity(entry.runtime_data)])
 
 
@@ -36,12 +37,15 @@ class MirrorConnectivity(WiseMirrorEntity, BinarySensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, coordinator: WiseMirrorCoordinator) -> None:
+        """Create the sensor for a mirror."""
         super().__init__(coordinator, "connectivity")
 
     @property
     def available(self) -> bool:
+        """Stay available, so offline is reported rather than hidden."""
         return True
 
     @property
     def is_on(self) -> bool:
+        """Return whether the last poll reached the mirror."""
         return self.coordinator.last_update_success

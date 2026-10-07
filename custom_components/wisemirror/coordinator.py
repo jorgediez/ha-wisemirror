@@ -33,6 +33,7 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         device: WiseMirrorDevice,
         scan_interval_seconds: int,
     ) -> None:
+        """Create the coordinator for one mirror."""
         super().__init__(
             hass,
             _LOGGER,

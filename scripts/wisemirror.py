@@ -18,7 +18,6 @@ Usage:
 import argparse
 import json
 import socket
-import sys
 import urllib.parse
 
 BCAST = "255.255.255.255"
@@ -116,10 +115,12 @@ def discover(probe: bytes = PROBE_TEMP, listen_port: int = 4026, timeout: float 
             d = parse_reply(data.decode("utf-8", "ignore"))
             if d and d["bssid"] not in seen:
                 seen.add(d["bssid"])
-                if not d.get("address") or d["address"] == "0.0.0.0":
+                # A mirror without an address of its own reports 0.0.0.0; use the
+                # address the reply came from. A comparison, not a bind.
+                if not d.get("address") or d["address"] == "0.0.0.0":  # noqa: S104
                     d["address"] = addr[0]
                 found.append(d)
-    except socket.timeout:
+    except TimeoutError:
         pass
     finally:
         s.close()
@@ -148,7 +149,7 @@ def send_command(
             s.sendto(frame, (ip, CONTROL_PORT))
             try:
                 ack, _ = s.recvfrom(250)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             ok = len(ack) > 5 and ack[5] == 1 and ack[1] == wire
             return ok, ack
@@ -159,7 +160,7 @@ def send_command(
 
 def area_payload(name: str, lat: float, lon: float, accu_key: str = "") -> bytes:
     """z.d.b('<urlencoded name>(lat,lon)(key)') -> 2-byte len prefix + utf8."""
-    s = f"{urllib.parse.quote(name)}({lat},{lon})({accu_key})".encode("utf-8")
+    s = f"{urllib.parse.quote(name)}({lat},{lon})({accu_key})".encode()
     return bytes([(len(s) >> 8) & 0xFF, len(s) & 0xFF]) + s
 
 
