@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   lint:
-    name: Ruff
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -32,7 +32,7 @@ jobs:
         include:
           # Oldest supported release, as in hacs.json. Dependabot only bumps
           # requirements_test.txt, so this pin stays put.
-          - name: "2025.1"
+          - name: min  # 2025.1
             python: "3.12"
             harness: "pytest-homeassistant-custom-component==0.13.205"
           # Newest release, as pinned in requirements_test.txt.
