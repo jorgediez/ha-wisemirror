@@ -9,3 +9,12 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
+
+# Local scratch: captures and notes. Never publish these.
+tmp/
+
+# Local tooling state. The project's agent skills are shared; the rest of
+# .claude/ (local settings, session state) is not.
+.claude/*
+!.claude/skills/

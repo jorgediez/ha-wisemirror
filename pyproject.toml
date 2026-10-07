@@ -11,25 +11,55 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
 
+[tool.coverage.run]
+source = ["custom_components/wisemirror"]
+
 [tool.ruff]
 target-version = "py312"
-line-length = 100
-extend-exclude = ["tools"]
+line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "ASYNC", "PL"]
+select = [
+  "ASYNC",
+  "B",    # bugbear
+  "BLE",  # blind except
+  "D",    # docstrings
+  "E",
+  "F",
+  "I",    # isort
+  "PL",   # pylint
+  "RUF",
+  "S",    # bandit
+  "SIM",
+  "UP",
+  "W",
+]
 ignore = [
-    "PLR0913",  # HA test/entity signatures take many args
-    "PLR2004",  # magic values are protocol offsets
-    "RUF001",   # "…" in user-facing strings
-    "RUF012",   # HA entities declare _attr_* lists as class attributes
+  "D202",
+  "D203",
+  "D213",
+  "E501",
+  "PLR0911",
+  "PLR0912",
+  "PLR2004",  # magic values are protocol offsets
+  "RUF001",   # "…" in user-facing strings
+  "RUF012",   # HA entities declare _attr_* lists as class attributes
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["PLR0913", "PLR0917", "E501"]
+"tests/**" = ["D", "S101", "PLR0913", "PLR0917", "PLC0415", "SLF001"]
+# Interactive command-line tools for working against a real mirror.
+"scripts/**" = [
+  "ASYNC240",
+  "BLE001",
+  "D",
+  "PLC0415",
+  "PLR0915",
+  "S101",
+  "T201",
+]
 
 [tool.ruff.lint.isort]
-known-first-party = ["custom_components"]
-known-third-party = ["homeassistant", "pytest_homeassistant_custom_component"]
 force-sort-within-sections = true
+known-first-party = ["custom_components", "homeassistant"]
 combine-as-imports = true

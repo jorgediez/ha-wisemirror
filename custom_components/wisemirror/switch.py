@@ -68,25 +68,34 @@ async def async_setup_entry(
     entry: WiseMirrorConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the switches."""
     coordinator = entry.runtime_data
     async_add_entities(WiseMirrorSwitch(coordinator, desc) for desc in SWITCHES)
 
 
 class WiseMirrorSwitch(WiseMirrorEntity, SwitchEntity):
+    """An on/off setting of the mirror."""
+
     entity_description: WiseMirrorSwitchDescription
 
     def __init__(
-        self, coordinator: WiseMirrorCoordinator, description: WiseMirrorSwitchDescription
+        self,
+        coordinator: WiseMirrorCoordinator,
+        description: WiseMirrorSwitchDescription,
     ) -> None:
+        """Create the switch for a mirror from its description."""
         super().__init__(coordinator, description.key)
         self.entity_description = description
 
     @property
     def is_on(self) -> bool | None:
+        """Return whether the setting is on."""
         return self._data.get(self.entity_description.state_key)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the setting on."""
         await self.entity_description.set_fn(self.coordinator, True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the setting off."""
         await self.entity_description.set_fn(self.coordinator, False)

@@ -22,8 +22,11 @@ async def async_setup_entry(
     entry: WiseMirrorConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the temperature unit and weather server selects."""
     coordinator = entry.runtime_data
-    async_add_entities([TemperatureUnitSelect(coordinator), WeatherServerSelect(coordinator)])
+    async_add_entities(
+        [TemperatureUnitSelect(coordinator), WeatherServerSelect(coordinator)]
+    )
 
 
 class TemperatureUnitSelect(WiseMirrorEntity, SelectEntity):
@@ -34,16 +37,19 @@ class TemperatureUnitSelect(WiseMirrorEntity, SelectEntity):
     _attr_options = [UNIT_CELSIUS, UNIT_FAHRENHEIT]
 
     def __init__(self, coordinator: WiseMirrorCoordinator) -> None:
+        """Create the select for a mirror."""
         super().__init__(coordinator, "temperature_unit")
 
     @property
     def current_option(self) -> str | None:
+        """Return the unit the mirror shows."""
         unit = self._data.get("unit")
         if unit is None:
             return None
         return UNIT_CELSIUS if unit == 1 else UNIT_FAHRENHEIT
 
     async def async_select_option(self, option: str) -> None:
+        """Send the chosen unit to the mirror."""
         await self.coordinator.async_send(
             self.coordinator.device.set_unit_celsius, option == UNIT_CELSIUS
         )
@@ -57,11 +63,14 @@ class WeatherServerSelect(WiseMirrorEntity, SelectEntity):
     _attr_options = list(SERVER_TO_RAW)
 
     def __init__(self, coordinator: WiseMirrorCoordinator) -> None:
+        """Create the select for a mirror."""
         super().__init__(coordinator, "weather_server")
 
     @property
     def current_option(self) -> str | None:
+        """Return the weather server in use."""
         return self._data.get("server")
 
     async def async_select_option(self, option: str) -> None:
+        """Switch the mirror to another weather server."""
         await self.coordinator.async_set_weather(server_raw=SERVER_TO_RAW[option])

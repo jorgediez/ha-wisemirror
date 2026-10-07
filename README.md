@@ -184,7 +184,7 @@ The mirror listens on UDP. Home Assistant sends a broadcast probe to discover mi
 indoor temperature/humidity, and sends small framed commands to read and change settings. The
 protocol was reverse-engineered from the WiseMirror app and is documented in
 [docs/PROTOCOL.md](docs/PROTOCOL.md). A standalone command-line tool for experimenting is in
-[tools/wisemirror.py](tools/wisemirror.py).
+[scripts/wisemirror.py](scripts/wisemirror.py).
 
 ## Contributing
 

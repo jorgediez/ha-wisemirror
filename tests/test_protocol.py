@@ -89,7 +89,9 @@ def fake_socket():
 def test_build_frame() -> None:
     # brightness 80: A5 06 00 01 00 01 50 chk 5A
     frame = _build_frame(0x06, bytes([80]))
-    assert frame == bytes([0xA5, 0x06, 0x00, 0x01, 0x00, 0x01, 80, 0x06 + 1 + 1 + 80, 0x5A])
+    assert frame == bytes(
+        [0xA5, 0x06, 0x00, 0x01, 0x00, 0x01, 80, 0x06 + 1 + 1 + 80, 0x5A]
+    )
 
 
 def test_parse_probe() -> None:

@@ -17,6 +17,7 @@ class WiseMirrorEntity(CoordinatorEntity[WiseMirrorCoordinator]):
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: WiseMirrorCoordinator, key: str) -> None:
+        """Describe the mirror as a device, identified by its MAC."""
         super().__init__(coordinator)
         entry = coordinator.config_entry
         data = coordinator.data or {}
@@ -35,6 +36,7 @@ class WiseMirrorEntity(CoordinatorEntity[WiseMirrorCoordinator]):
 
     @property
     def available(self) -> bool:
+        """Return whether the last poll returned the mirror's state."""
         return super().available and bool(self.coordinator.data)
 
     @property

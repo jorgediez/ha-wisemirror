@@ -18,8 +18,11 @@ async def async_setup_entry(
     entry: WiseMirrorConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the brightness numbers."""
     coordinator = entry.runtime_data
-    async_add_entities([DayBrightnessNumber(coordinator), NightBrightnessNumber(coordinator)])
+    async_add_entities(
+        [DayBrightnessNumber(coordinator), NightBrightnessNumber(coordinator)]
+    )
 
 
 class _BaseBrightness(WiseMirrorEntity, NumberEntity):
@@ -31,28 +34,42 @@ class _BaseBrightness(WiseMirrorEntity, NumberEntity):
 
 
 class DayBrightnessNumber(_BaseBrightness):
+    """Display brightness outside night mode."""
+
     _attr_translation_key = "brightness"
 
     def __init__(self, coordinator: WiseMirrorCoordinator) -> None:
+        """Create the number for a mirror."""
         super().__init__(coordinator, "brightness")
 
     @property
     def native_value(self) -> int | None:
+        """Return the brightness, in percent."""
         return self._data.get("brightness")
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_send(self.coordinator.device.set_brightness, int(value))
+        """Send a new brightness to the mirror."""
+        await self.coordinator.async_send(
+            self.coordinator.device.set_brightness, int(value)
+        )
 
 
 class NightBrightnessNumber(_BaseBrightness):
+    """Display brightness during night mode."""
+
     _attr_translation_key = "night_brightness"
 
     def __init__(self, coordinator: WiseMirrorCoordinator) -> None:
+        """Create the number for a mirror."""
         super().__init__(coordinator, "night_brightness")
 
     @property
     def native_value(self) -> int | None:
+        """Return the night brightness, in percent."""
         return self._data.get("night_light")
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_send(self.coordinator.device.set_night_brightness, int(value))
+        """Send a new night brightness to the mirror."""
+        await self.coordinator.async_send(
+            self.coordinator.device.set_night_brightness, int(value)
+        )
