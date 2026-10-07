@@ -223,3 +223,18 @@ async def test_offline_marks_entities_unavailable(
         hass.states.get("binary_sensor.wisemirror_2m09_ceb8_connectivity").state
         == "off"
     )
+
+
+async def test_a_failed_poll_is_reported_in_the_users_language(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    await _setup(hass, config_entry)
+    mock_device.poll.side_effect = ConnectionError("gone")
+    mock_device.discover.return_value = []
+
+    coordinator = config_entry.runtime_data
+    await coordinator.async_refresh()
+
+    error = coordinator.last_exception
+    assert error.translation_key == "update_failed"
+    assert error.translation_placeholders == {"host": HOST, "error": "gone"}

@@ -142,6 +142,39 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the IP address of a configured mirror."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            host = user_input[CONF_HOST].strip()
+            device = WiseMirrorDevice(host=host)
+            try:
+                state = await self.hass.async_add_executor_job(device.poll)
+            except ConnectionError:
+                errors["base"] = "cannot_connect"
+            else:
+                # A mirror added before its MAC could be read is keyed by its IP,
+                # which leaves nothing to tell another mirror apart by.
+                bssid = state.get("bssid")
+                if bssid and entry.unique_id and ":" in entry.unique_id:
+                    await self.async_set_unique_id(bssid)
+                    self._abort_if_unique_id_mismatch(reason="wrong_device")
+                return self.async_update_reload_and_abort(
+                    entry, data_updates={CONF_HOST: host}
+                )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema({vol.Required(CONF_HOST): str}),
+                user_input or {CONF_HOST: entry.data[CONF_HOST]},
+            ),
+            errors=errors,
+        )
+
 
 class WiseMirrorOptionsFlow(OptionsFlow):
     """Options: poll interval (integration-wide) + follow HA's home location (per mirror)."""

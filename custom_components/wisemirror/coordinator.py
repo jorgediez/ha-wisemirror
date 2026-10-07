@@ -71,7 +71,11 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         return await self.hass.async_add_executor_job(self.device.poll)
                     except ConnectionError:
                         pass
-            raise UpdateFailed(str(err)) from err
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={"host": self.device.host, "error": str(err)},
+            ) from err
 
     @staticmethod
     def _relocate(bssid: str) -> str | None:

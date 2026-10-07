@@ -13,10 +13,22 @@
         "data_description": {
           "host": "El espejo debe estar ya conectado a tu wifi mediante la app WiseMirror."
         }
+      },
+      "reconfigure": {
+        "title": "Cambiar la dirección IP del espejo",
+        "description": "Introduce la nueva dirección IP del espejo (se recomienda una reserva DHCP).",
+        "data": { "host": "Dirección IP" },
+        "data_description": {
+          "host": "El espejo debe estar ya conectado a tu wifi mediante la app WiseMirror."
+        }
       }
     },
     "error": { "cannot_connect": "No se pudo contactar con un espejo en esa dirección." },
-    "abort": { "already_configured": "Este espejo ya está configurado." }
+    "abort": {
+      "already_configured": "Este espejo ya está configurado.",
+      "reconfigure_successful": "Se ha actualizado la dirección del espejo.",
+      "wrong_device": "Esa dirección pertenece a otro espejo. Para añadirlo, configúralo como un dispositivo nuevo."
+    }
   },
   "options": {
     "step": {
@@ -82,6 +94,9 @@
     }
   },
   "exceptions": {
+    "update_failed": {
+      "message": "No se pudo contactar con el espejo en {host}: {error}"
+    },
     "command_not_acknowledged": {
       "message": "El espejo en {host} no confirmó la orden."
     },

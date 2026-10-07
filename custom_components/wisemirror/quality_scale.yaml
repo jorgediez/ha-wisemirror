@@ -1,0 +1,95 @@
+# Home Assistant's Integration Quality Scale, as a checklist for this integration.
+# Hassfest only validates this file for core integrations; it is kept by hand.
+# https://developers.home-assistant.io/docs/core/integration-quality-scale/
+rules:
+  # Bronze
+  action-setup: done
+  appropriate-polling:
+    status: done
+    comment: 60 s by default, set once for all mirrors in the options.
+  brands: done
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency:
+    status: exempt
+    comment: No external requirements; the protocol client is part of the integration.
+  docs-actions: done
+  docs-conditions:
+    status: exempt
+    comment: The integration provides no conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: todo
+  docs-triggers:
+    status: exempt
+    comment: The integration provides no triggers.
+  entity-event-setup:
+    status: exempt
+    comment: Entities subscribe to nothing themselves; they read the coordinator.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow:
+    status: exempt
+    comment: The mirror takes no credentials.
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: >-
+      Mirrors answer a proprietary UDP broadcast probe that Home Assistant's
+      discovery does not send; the user step sends it and lists what answers.
+  discovery-update-info:
+    status: exempt
+    comment: >-
+      No Home Assistant discovery. After an IP change, the coordinator finds the
+      mirror again by its MAC address and updates the entry itself.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: Each config entry is one mirror.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues:
+    status: exempt
+    comment: Nothing the integration detects needs the user to act on it.
+  stale-devices:
+    status: exempt
+    comment: Each config entry is one mirror.
+
+  # Platinum
+  async-dependency:
+    status: todo
+    comment: The protocol client uses blocking sockets, run in the executor.
+  inject-websession:
+    status: exempt
+    comment: The mirror speaks UDP, not HTTP.
+  strict-typing: todo
