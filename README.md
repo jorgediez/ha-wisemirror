@@ -203,7 +203,7 @@ OS, against both the oldest supported and the latest Home Assistant (the same ma
 ```bash
 scripts/test-docker.sh                 # both versions
 scripts/test-docker.sh min -k options  # one version ("min" or "latest"), extra pytest args
-REBUILD=1 scripts/test-docker.sh       # pick up a new Home Assistant release
+REBUILD=1 scripts/test-docker.sh       # rebuild the images anyway; a new pin rebuilds by itself
 ```
 
 ## Disclaimer
