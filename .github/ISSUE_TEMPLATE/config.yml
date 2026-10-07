@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Questions and mirror reports
+    url: https://community.home-assistant.io/t/wisemirror-local-control-of-smart-bathroom-mirrors-alasta-byecold-gs-mirror/1027643
+    about: Ask in the Home Assistant community thread, or tell everyone how the integration does on your mirror.

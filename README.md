@@ -205,7 +205,8 @@ protocol was reverse-engineered from the WiseMirror app and is documented in
 
 Issues and pull requests are welcome. Compatibility reports for other brands and models are
 especially useful. See [CONTRIBUTING.md](CONTRIBUTING.md) for what makes a report actionable and
-how to work on the code, including running the tests on any OS with Docker.
+how to work on the code, including running the tests on any OS with Docker. Questions are welcome
+in the [Home Assistant community thread](https://community.home-assistant.io/t/wisemirror-local-control-of-smart-bathroom-mirrors-alasta-byecold-gs-mirror/1027643).
 
 ## Disclaimer
 
