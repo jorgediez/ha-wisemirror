@@ -1,3 +1,4 @@
-# Pins Home Assistant itself; bump to test against a newer release.
-pytest-homeassistant-custom-component
-ruff
+# Pins the newest stable Home Assistant, and with it pytest, pytest-asyncio,
+# pytest-timeout, pytest-cov and PyYAML. Skip harness releases built on a beta.
+pytest-homeassistant-custom-component==0.13.367
+ruff==0.16.10
