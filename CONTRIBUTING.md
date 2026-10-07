@@ -6,8 +6,11 @@ app, and other brands and models may behave differently.
 
 ## Reporting a mirror, or a problem
 
-Open an [issue](https://github.com/jorgediez/ha-wisemirror/issues/new/choose). There is a form for
-telling us whether the integration works with your mirror, one for bugs, and one for ideas.
+The [community thread](https://community.home-assistant.io/t/wisemirror-local-control-of-smart-bathroom-mirrors-alasta-byecold-gs-mirror/1027643)
+is the easiest place for questions, and for "it works on my mirror" or "it behaves oddly". Bugs
+are better as an [issue](https://github.com/jorgediez/ha-wisemirror/issues/new/choose), where there
+is a form for telling us whether the integration works with your mirror, one for bugs, and one for
+ideas.
 
 What makes a report actionable:
 
