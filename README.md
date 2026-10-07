@@ -1,6 +1,7 @@
 # WiseMirror for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
+[![Release](https://img.shields.io/github/v/release/jorgediez/ha-wisemirror)](https://github.com/jorgediez/ha-wisemirror/releases)
 [![Validate](https://github.com/jorgediez/ha-wisemirror/actions/workflows/validate.yml/badge.svg)](https://github.com/jorgediez/ha-wisemirror/actions/workflows/validate.yml)
 [![Tests](https://github.com/jorgediez/ha-wisemirror/actions/workflows/tests.yml/badge.svg)](https://github.com/jorgediez/ha-wisemirror/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -83,6 +84,10 @@ Or manually in HACS:
 
 The integration scans your network and lists the mirrors it finds. Pick one, or choose **Enter IP
 address manually**. Repeat this for each mirror; each one becomes its own device.
+
+If a mirror's IP address changes, the integration finds it again by its MAC address. To set the
+address yourself, open the mirror under **Settings → Devices & services → WiseMirror**, then
+**⋮ → Reconfigure**. An address that answers with a different mirror's MAC is refused.
 
 ### Options
 
@@ -178,6 +183,16 @@ automation:
 - **Diagnostics**: Settings → Devices & services → WiseMirror → ⋮ → *Download diagnostics*.
   Please attach it to bug reports.
 
+## Removal
+
+1. **Settings → Devices & services → WiseMirror**, then **⋮ → Delete** on each mirror. Deleting
+   the last one also deletes the integration-wide poll interval.
+2. If you installed through HACS, remove **WiseMirror** there; otherwise delete
+   `<config>/custom_components/wisemirror`.
+3. Restart Home Assistant.
+
+The mirrors keep their current settings. The WiseMirror app can manage them again as before.
+
 ## How it works
 
 The mirror listens on UDP. Home Assistant sends a broadcast probe to discover mirrors and read the
@@ -188,23 +203,9 @@ protocol was reverse-engineered from the WiseMirror app and is documented in
 
 ## Contributing
 
-Issues and pull requests are welcome. Compatibility reports for other brands/models are especially
-useful.
-
-```bash
-pip install -r requirements_test.txt
-ruff check . && ruff format --check .
-pytest
-```
-
-The Home Assistant test harness requires Linux or macOS. With Docker you can run the suite on any
-OS, against both the oldest supported and the latest Home Assistant (the same matrix as CI):
-
-```bash
-scripts/test-docker.sh                 # both versions
-scripts/test-docker.sh min -k options  # one version ("min" or "latest"), extra pytest args
-REBUILD=1 scripts/test-docker.sh       # rebuild the images anyway; a new pin rebuilds by itself
-```
+Issues and pull requests are welcome. Compatibility reports for other brands and models are
+especially useful. See [CONTRIBUTING.md](CONTRIBUTING.md) for what makes a report actionable and
+how to work on the code, including running the tests on any OS with Docker.
 
 ## Disclaimer
 
