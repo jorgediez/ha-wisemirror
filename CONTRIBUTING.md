@@ -23,6 +23,9 @@ What makes a report actionable:
   [`scripts/wisemirror.py`](scripts/wisemirror.py), which talks to a mirror directly, without Home
   Assistant: `python scripts/wisemirror.py discover`.
 
+A security problem should not go in an issue or the thread: see [SECURITY.md](SECURITY.md) for how to
+report it privately.
+
 ## What belongs here
 
 This integration controls the weather-station display of mirrors managed with the WiseMirror app,
