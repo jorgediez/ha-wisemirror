@@ -83,6 +83,14 @@ and the code already here: entity names and errors translated, no blocking calls
 (the protocol client is blocking, so it runs in the executor), comments that say why rather than
 what. Ruff, at line length 88, settles formatting.
 
+## Releasing
+
+1. Bump `version` in `custom_components/wisemirror/manifest.json` and in `pyproject.toml`. A test
+   checks they match.
+2. Publish a GitHub release tagged `vX.Y.Z`, with notes for users. HACS installs from that tag.
+3. The **Release** workflow checks the tag matches both files, then runs the tests and the HACS and
+   hassfest validation against the tagged code.
+
 ## License
 
 Contributions are under the [MIT License](LICENSE), like the rest of the project.
