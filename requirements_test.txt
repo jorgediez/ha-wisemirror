@@ -1,4 +1,4 @@
 # Pins the newest stable Home Assistant, and with it pytest, pytest-asyncio,
 # pytest-timeout, pytest-cov and PyYAML. Skip harness releases built on a beta.
-pytest-homeassistant-custom-component==0.13.367
+pytest-homeassistant-custom-component==0.13.373
 ruff==0.16.10
