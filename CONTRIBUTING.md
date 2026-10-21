@@ -94,8 +94,9 @@ what. Ruff, at line length 88, settles formatting.
 1. Bump `version` in `custom_components/wisemirror/manifest.json` and in `pyproject.toml`. A test
    checks they match.
 2. Publish a GitHub release tagged `vX.Y.Z`, with notes for users. HACS installs from that tag.
-3. The **Release** workflow checks the tag matches both files, then runs the tests and the HACS and
-   hassfest validation against the tagged code.
+3. The **Release** workflow checks the tag matches both files, then runs the tests and hassfest
+   against the tagged code, and the HACS validation, which checks the repository through GitHub's
+   API rather than the tag.
 
 ## License
 
