@@ -162,9 +162,15 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
                 if bssid and entry.unique_id and ":" in entry.unique_id:
                     await self.async_set_unique_id(bssid)
                     self._abort_if_unique_id_mismatch(reason="wrong_device")
-                return self.async_update_reload_and_abort(
-                    entry, data_updates={CONF_HOST: host}
+                self.hass.config_entries.async_update_entry(
+                    entry, data={**entry.data, CONF_HOST: host}
                 )
+                # Not async_update_reload_and_abort: Home Assistant deprecates it
+                # for an entry with an update listener, and it becomes an error in
+                # 2026.12. The listener only reloads on an options change, so the
+                # reload is scheduled here.
+                self.hass.config_entries.async_schedule_reload(entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
 
         return self.async_show_form(
             step_id="reconfigure",

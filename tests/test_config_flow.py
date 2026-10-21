@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import logging
 from unittest.mock import MagicMock
 
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wisemirror.const import (
@@ -160,8 +162,19 @@ async def _reconfigure(hass: HomeAssistant, entry: MockConfigEntry, host: str) -
 
 
 async def test_reconfigure_changes_the_address(
-    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """The loaded entry reloads with the new address.
+
+    A loaded entry has an update listener, and async_update_reload_and_abort
+    is deprecated for such an entry; it becomes an error in Home Assistant
+    2026.12.
+    """
+    # Core reports the deprecated call through its frame helper's logger.
+    caplog.set_level(logging.WARNING, logger="homeassistant.helpers.frame")
     config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
@@ -173,6 +186,7 @@ async def test_reconfigure_changes_the_address(
     assert config_entry.data[CONF_HOST] == "192.168.1.99"
     assert config_entry.state is ConfigEntryState.LOADED
     assert config_entry.runtime_data.device.host == "192.168.1.99"
+    assert "update listener" not in caplog.text
 
 
 async def test_reconfigure_retries_an_unreachable_address(
