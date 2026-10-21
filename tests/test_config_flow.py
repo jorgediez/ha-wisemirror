@@ -117,11 +117,11 @@ async def test_options_flow(
     assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_SCAN_INTERVAL: 30, CONF_USE_HA_LOCATION: False},
+        {CONF_SCAN_INTERVAL: 30, CONF_USE_HA_LOCATION: True},
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert config_entry.options == {CONF_USE_HA_LOCATION: False}
+    assert config_entry.options == {CONF_USE_HA_LOCATION: True}
 
     # options changed -> entry reloaded with a new coordinator using the new interval
     assert config_entry.runtime_data is not coordinator
@@ -139,7 +139,7 @@ async def test_options_interval_only_applies_live(
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
     await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_SCAN_INTERVAL: 120, CONF_USE_HA_LOCATION: True},
+        {CONF_SCAN_INTERVAL: 120, CONF_USE_HA_LOCATION: False},
     )
     await hass.async_block_till_done()
     # no reload needed: same coordinator, interval updated in place

@@ -17,9 +17,11 @@ CONF_HOST = "host"
 CONF_BSSID = "bssid"
 CONF_MODEL = "model"
 
-# option: keep the mirror's weather location in sync with HA's home location
+# option: keep the mirror's weather location in sync with HA's home location.
+# Off unless the user turns it on: nothing is written to a mirror unasked, and the
+# city picked in the WiseMirror app stays until then.
 CONF_USE_HA_LOCATION = "use_ha_location"
-DEFAULT_USE_HA_LOCATION = True
+DEFAULT_USE_HA_LOCATION = False
 
 MANUFACTURER = "WiseMirror"
 
