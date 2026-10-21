@@ -23,7 +23,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .conftest import BSSID, HOST
+from .conftest import BSSID, HOST, SETTERS
 
 
 def _device(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry:
@@ -35,6 +35,17 @@ async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+
+
+def _following(entry: MockConfigEntry, follow: bool = True) -> MockConfigEntry:
+    """Return the entry with "Follow Home Assistant's home location" set."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title=entry.title,
+        unique_id=entry.unique_id,
+        data=dict(entry.data),
+        options={CONF_USE_HA_LOCATION: follow},
+    )
 
 
 async def test_setup_and_unload(
@@ -86,13 +97,29 @@ async def test_humidity_disabled_by_default_without_sensor(
     assert hass.states.get(entity_id) is None
 
 
+async def test_nothing_is_written_by_default(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    """Following Home Assistant's location is opt-in.
+
+    Until the user turns it on, setting up a mirror or moving Home Assistant's
+    home writes nothing to it, so the city picked in the app stays.
+    """
+    await hass.config.async_update(latitude=40.4168, longitude=-3.7038)
+    await _setup(hass, config_entry)
+    await hass.config.async_update(latitude=41.0, longitude=-4.0)
+    await hass.async_block_till_done()
+    for name in SETTERS:
+        getattr(mock_device, name).assert_not_called()
+
+
 async def test_follows_ha_location(
     hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
 ) -> None:
     await hass.config.async_update(
         latitude=40.4168, longitude=-3.7038, location_name="Casa"
     )
-    await _setup(hass, config_entry)
+    await _setup(hass, _following(config_entry))
     mock_device.set_location.assert_called_once_with("Casa", 40.4168, -3.7038)
 
     mock_device.set_location.reset_mock()
@@ -105,22 +132,15 @@ async def test_location_already_matches(
     hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
 ) -> None:
     await hass.config.async_update(latitude=42.6, longitude=-5.5)
-    await _setup(hass, config_entry)
+    await _setup(hass, _following(config_entry))
     mock_device.set_location.assert_not_called()
 
 
 async def test_location_sync_disabled(
     hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
 ) -> None:
-    config_entry = MockConfigEntry(
-        domain=DOMAIN,
-        title=config_entry.title,
-        unique_id=config_entry.unique_id,
-        data=dict(config_entry.data),
-        options={CONF_USE_HA_LOCATION: False},
-    )
     await hass.config.async_update(latitude=40.4168, longitude=-3.7038)
-    await _setup(hass, config_entry)
+    await _setup(hass, _following(config_entry, follow=False))
     await hass.config.async_update(latitude=41.0, longitude=-4.0)
     await hass.async_block_till_done()
     mock_device.set_location.assert_not_called()

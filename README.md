@@ -22,7 +22,7 @@ mirror directly over UDP on your LAN.
 - **Night mode** on/off with start and end times.
 - **Clock and date** format (12/24-hour, day-month order), **temperature unit**, **two-day forecast**,
   **weather source**.
-- **Weather location**, which can automatically follow Home Assistant's home location.
+- **Weather location**, which can follow Home Assistant's home location if you turn that on.
 - Detects **IP address changes** and finds the mirror again by its MAC address.
 - **Diagnostics** download, with sensitive data (IP, MAC, location) redacted.
 - English and Spanish translations.
@@ -96,7 +96,7 @@ Open **Configure** on any mirror:
 | Option | Scope | Default | Description |
 |---|---|---|---|
 | Poll interval | All mirrors | 60 s | How often mirrors are polled for changes made elsewhere (app, buttons). 10–3600 s. Each poll is just a few small UDP packets. |
-| Follow Home Assistant's home location | This mirror | On | Keeps the mirror's weather location in sync with Home Assistant's home location (Settings → System → General). |
+| Follow Home Assistant's home location | This mirror | Off | Keeps the mirror's weather location in sync with Home Assistant's home location (Settings → System → General). While it's off, the integration never changes the location: the one picked in the WiseMirror app stays. |
 
 ## Entities
 
