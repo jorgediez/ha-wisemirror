@@ -1,8 +1,9 @@
 # Contributing
 
-Thanks for looking. Reports from mirrors other than the tested Alasta 2M09 are the most useful
-thing anyone can send: the integration talks to a protocol reverse-engineered from the WiseMirror
-app, and other brands and models may behave differently.
+Thanks for looking. Reports from mirrors other than the tested models (see
+[Compatibility](README.md#compatibility)) are the most useful thing anyone can send: the integration
+talks to a protocol reverse-engineered from the WiseMirror app, and other brands and models may
+behave differently.
 
 ## Reporting a mirror, or a problem
 

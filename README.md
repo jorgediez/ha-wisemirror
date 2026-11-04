@@ -36,7 +36,8 @@ Each mirror shows up in Home Assistant as a device with its controls, sensors an
 | Brand | Model (as reported by the mirror) | Status |
 |---|---|---|
 | Alasta | `2M09`, firmware `V1.9.250215` | ✅ Tested |
-| BYECOLD, GS Mirror, and other mirrors set up with the WiseMirror app | `8J11`, `8J12`, `2K02`, `2M09` | ❔ Should work, not tested |
+| Unknown (set up with the WiseMirror app) | `8J12`, firmware `V4.6.230601` | ✅ Tested |
+| BYECOLD, GS Mirror, and other mirrors set up with the WiseMirror app | `8J11`, `2K02`, `2M09` | ❔ Should work, not tested |
 
 If your mirror is set up with the **WiseMirror** app, it very likely speaks the same protocol. Please
 [report whether it works](https://github.com/jorgediez/ha-wisemirror/issues/new?template=device_report.yml),
