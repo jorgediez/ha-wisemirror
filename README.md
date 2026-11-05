@@ -1,6 +1,6 @@
 # WiseMirror for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
 [![Release](https://img.shields.io/github/v/release/jorgediez/ha-wisemirror)](https://github.com/jorgediez/ha-wisemirror/releases)
 [![Validate](https://github.com/jorgediez/ha-wisemirror/actions/workflows/validate.yml/badge.svg)](https://github.com/jorgediez/ha-wisemirror/actions/workflows/validate.yml)
 [![Tests](https://github.com/jorgediez/ha-wisemirror/actions/workflows/tests.yml/badge.svg)](https://github.com/jorgediez/ha-wisemirror/actions/workflows/tests.yml)
@@ -65,11 +65,8 @@ default because not all models support it.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jorgediez&repository=ha-wisemirror&category=integration)
 
-Or manually in HACS:
-
-1. Open HACS → ⋮ → **Custom repositories**.
-2. Add `https://github.com/jorgediez/ha-wisemirror` with type **Integration**.
-3. Search for **WiseMirror**, download it, and **restart Home Assistant**.
+1. In HACS, search for **WiseMirror** and open it, or use the button above.
+2. Select **Download**, then **restart Home Assistant**.
 
 ### Manual
 

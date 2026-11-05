@@ -1,6 +1,7 @@
 {
   "domain": "wisemirror",
   "name": "WiseMirror",
+  "categories": ["weather_alerts.forecasts"],
   "codeowners": ["@jorgediez"],
   "config_flow": true,
   "documentation": "https://github.com/jorgediez/ha-wisemirror",
