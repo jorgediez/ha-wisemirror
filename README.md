@@ -1,6 +1,6 @@
 # WiseMirror for Home Assistant
 
-[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
+[![Marketplace](https://img.shields.io/badge/Marketplace-Default-41BDF5.svg?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/integrations/marketplace/)
 [![Release](https://img.shields.io/github/v/release/jorgediez/ha-wisemirror)](https://github.com/jorgediez/ha-wisemirror/releases)
 [![Validate](https://github.com/jorgediez/ha-wisemirror/actions/workflows/validate.yml/badge.svg)](https://github.com/jorgediez/ha-wisemirror/actions/workflows/validate.yml)
 [![Tests](https://github.com/jorgediez/ha-wisemirror/actions/workflows/tests.yml/badge.svg)](https://github.com/jorgediez/ha-wisemirror/actions/workflows/tests.yml)
@@ -61,12 +61,17 @@ default because not all models support it.
 
 ## Installation
 
-### HACS (recommended)
+### Marketplace (recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jorgediez&repository=ha-wisemirror&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=jorgediez&repository=ha-wisemirror&category=integration)
 
-1. In HACS, search for **WiseMirror** and open it, or use the button above.
-2. Select **Download**, then **restart Home Assistant**.
+1. In Home Assistant, go to **Settings → Marketplace**, search for **WiseMirror** and open it, or
+   use the button above.
+2. Select **Install**. The setup opens once it's installed; if a restart is needed, Home Assistant
+   offers one.
+
+On Home Assistant releases before 2026.11, use HACS instead: search for **WiseMirror**, select
+**Download**, then restart Home Assistant. The button above opens it there too.
 
 ### Manual
 
@@ -185,7 +190,8 @@ automation:
 
 1. **Settings → Devices & services → WiseMirror**, then **⋮ → Delete** on each mirror. Deleting
    the last one also deletes the integration-wide poll interval.
-2. If you installed through HACS, remove **WiseMirror** there; otherwise delete
+2. If you installed it from the Marketplace, open **WiseMirror** there and select
+   **⋮ → Uninstall**. With HACS, remove it there. Otherwise delete
    `<config>/custom_components/wisemirror`.
 3. Restart Home Assistant.
 
