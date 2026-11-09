@@ -7,7 +7,6 @@ import logging
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wisemirror.const import (
     CONF_BSSID,
@@ -26,6 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from .conftest import BSSID, HOST, MODEL
+from .harness import MockConfigEntry
 
 
 async def test_user_picks_discovered_mirror(

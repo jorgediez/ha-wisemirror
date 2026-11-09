@@ -7,10 +7,6 @@ from unittest.mock import MagicMock
 
 from freezegun.api import FrozenDateTimeFactory
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_fire_time_changed,
-)
 
 from custom_components.wisemirror.const import (
     CONF_HOST,
@@ -24,6 +20,10 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .conftest import BSSID, HOST, SETTERS
+from .harness import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 
 def _device(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry:

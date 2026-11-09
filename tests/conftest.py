@@ -8,7 +8,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.wisemirror.const import (
     CONF_BSSID,
@@ -17,6 +16,8 @@ from custom_components.wisemirror.const import (
     DOMAIN,
 )
 from custom_components.wisemirror.protocol import WiseMirrorDevice
+
+from .harness import MockConfigEntry
 
 HOST = "192.168.1.244"
 BSSID = "30:30:f9:f3:ce:b8"
