@@ -4,4 +4,4 @@ pytest-homeassistant==2026.11.0
 # It doesn't install the coverage plugin. The min job leaves this line out: its
 # harness pins its own.
 pytest-cov==7.1.0
-ruff==0.17.3
+ruff==0.17.4
