@@ -9,6 +9,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 
 from custom_components.wisemirror.const import (
+    CONF_BSSID,
     CONF_HOST,
     CONF_USE_HA_LOCATION,
     DOMAIN,
@@ -220,6 +221,50 @@ async def test_relocates_after_ip_change(
     assert coordinator.last_update_success
     assert config_entry.data[CONF_HOST] == "192.168.1.77"
     assert config_entry.state is ConfigEntryState.LOADED
+
+
+async def test_a_network_error_also_looks_for_the_mirror(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Not only ConnectionError: any socket error is a failed poll."""
+    await _setup(hass, config_entry)
+    mock_device.poll.side_effect = OSError(101, "Network is unreachable")
+    mock_device.discover.return_value = []
+    freezer.tick(61)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    mock_device.discover.assert_called_once()
+    assert not config_entry.runtime_data.last_update_success
+    assert (
+        hass.states.get("binary_sensor.wisemirror_2m09_ceb8_connectivity").state
+        == "off"
+    )
+
+
+async def test_a_mirror_keyed_by_its_ip_is_not_looked_for(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Without a MAC there is nothing to recognise it by in a scan."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="WiseMirror (192.168.1.50)",
+        unique_id="192.168.1.50",
+        data={CONF_HOST: "192.168.1.50", CONF_BSSID: "192.168.1.50"},
+    )
+    await _setup(hass, entry)
+    mock_device.poll.side_effect = ConnectionError("gone")
+    freezer.tick(61)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    mock_device.discover.assert_not_called()
+    assert not entry.runtime_data.last_update_success
 
 
 async def test_offline_marks_entities_unavailable(
