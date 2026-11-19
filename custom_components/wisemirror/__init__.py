@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 
 import voluptuous as vol
@@ -9,11 +10,8 @@ import voluptuous as vol
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import (
-    config_validation as cv,
-    device_registry as dr,
-    entity_registry as er,
-)
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_extract_config_entry_ids
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -48,11 +46,17 @@ PLATFORMS: list[Platform] = [
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+# Home Assistant dropped the helper's hass argument after 2025.1 (it is gone by
+# 2026.9), with no release taking both forms.
+_EXTRACT_TAKES_HASS = (
+    "hass" in inspect.signature(async_extract_config_entry_ids).parameters
+)
+
 SET_LOCATION_SCHEMA = vol.Schema(
     {
-        vol.Optional("device_id"): vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional("entity_id"): cv.entity_ids,
-        vol.Optional("area_id"): vol.All(cv.ensure_list, [cv.string]),
+        # Every target the action's picker offers: entities, devices, areas,
+        # floors and labels.
+        **cv.TARGET_SERVICE_FIELDS,
         vol.Required(ATTR_LOCATION_NAME): cv.string,
         vol.Required(ATTR_LATITUDE): vol.All(
             vol.Coerce(float), vol.Range(min=-90, max=90)
@@ -68,7 +72,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register integration-wide services."""
 
     async def _handle_set_location(call: ServiceCall) -> None:
-        entry_ids = _config_entry_ids_for_targets(hass, call)
+        if _EXTRACT_TAKES_HASS:
+            entry_ids = await async_extract_config_entry_ids(hass, call)
+        else:
+            entry_ids = await async_extract_config_entry_ids(call)
         coordinators = [
             coordinator
             for coordinator in async_loaded_coordinators(hass)
@@ -174,28 +181,3 @@ async def async_remove_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) 
     ]
     if not remaining:
         await async_remove_global_config(hass)
-
-
-def _config_entry_ids_for_targets(hass: HomeAssistant, call: ServiceCall) -> set[str]:
-    """Resolve device/entity/area targets to config entry ids."""
-    dev_reg = dr.async_get(hass)
-    ent_reg = er.async_get(hass)
-    device_ids: set[str] = set(call.data.get("device_id", []))
-
-    for entity_id in call.data.get("entity_id", []):
-        if (ent := ent_reg.async_get(entity_id)) and ent.device_id:
-            device_ids.add(ent.device_id)
-
-    for area_id in call.data.get("area_id", []):
-        device_ids.update(d.id for d in dr.async_entries_for_area(dev_reg, area_id))
-
-    entry_ids: set[str] = set()
-    for device_id in device_ids:
-        if not (device := dev_reg.async_get(device_id)):
-            continue
-        if hasattr(device, "config_entry_id"):  # HA 2026.x+: one entry per device
-            if device.config_entry_id:
-                entry_ids.add(device.config_entry_id)
-        else:  # older HA
-            entry_ids.update(device.config_entries)
-    return entry_ids

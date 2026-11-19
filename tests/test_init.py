@@ -18,7 +18,13 @@ from custom_components.wisemirror.const import (
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+    floor_registry as fr,
+    label_registry as lr,
+)
 
 from .conftest import BSSID, HOST, SETTERS
 from .harness import (
@@ -176,6 +182,43 @@ async def test_set_location_service(
         blocking=True,
     )
     mock_device.set_location.assert_called_once()
+
+
+@pytest.mark.parametrize("target", ["area_id", "floor_id", "label_id"])
+async def test_set_location_by_area_floor_or_label(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    target: str,
+) -> None:
+    """The action's target picker offers areas, floors and labels: all must work.
+
+    Only the mirror in the area, on the floor or with the label is written to.
+    """
+    other = MockConfigEntry(
+        domain=DOMAIN,
+        title="WiseMirror 2M09 (0001)",
+        unique_id="30:30:f9:00:00:01",
+        data={CONF_HOST: "192.168.1.245", CONF_BSSID: "30:30:f9:00:00:01"},
+    )
+    await _setup(hass, config_entry)
+    await _setup(hass, other)
+
+    floor = fr.async_get(hass).async_create("Upstairs")
+    area = ar.async_get(hass).async_create("Bathroom", floor_id=floor.floor_id)
+    label = lr.async_get(hass).async_create("Mirrors")
+    dr.async_get(hass).async_update_device(
+        _device(hass, config_entry).id, area_id=area.id, labels={label.label_id}
+    )
+    ids = {"area_id": area.id, "floor_id": floor.floor_id, "label_id": label.label_id}
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SET_LOCATION,
+        {target: ids[target], "name": "Madrid", "latitude": 40.4, "longitude": -3.7},
+        blocking=True,
+    )
+    mock_device.set_location.assert_called_once_with("Madrid", 40.4, -3.7)
 
 
 async def test_set_location_service_no_target(
