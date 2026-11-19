@@ -18,7 +18,14 @@ from custom_components.wisemirror.const import (
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    area_registry as ar,
+    config_validation as cv,
+    device_registry as dr,
+    entity_registry as er,
+    floor_registry as fr,
+    label_registry as lr,
+)
 
 from .conftest import BSSID, HOST, SETTERS
 from .harness import (
@@ -36,6 +43,16 @@ async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+
+
+def _second_mirror() -> MockConfigEntry:
+    """Another mirror, to check an action only reaches the one it targets."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title="WiseMirror 2M09 (0001)",
+        unique_id="30:30:f9:00:00:01",
+        data={CONF_HOST: "192.168.1.245", CONF_BSSID: "30:30:f9:00:00:01"},
+    )
 
 
 def _following(entry: MockConfigEntry, follow: bool = True) -> MockConfigEntry:
@@ -176,6 +193,78 @@ async def test_set_location_service(
         blocking=True,
     )
     mock_device.set_location.assert_called_once()
+
+
+@pytest.mark.parametrize("target", ["area_id", "floor_id", "label_id"])
+async def test_set_location_by_area_floor_or_label(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    target: str,
+) -> None:
+    """The action's target picker offers areas, floors and labels: all must work.
+
+    Only the mirror in the area, on the floor or with the label is written to.
+    """
+    await _setup(hass, config_entry)
+    await _setup(hass, _second_mirror())
+
+    floor = fr.async_get(hass).async_create("Upstairs")
+    area = ar.async_get(hass).async_create("Bathroom", floor_id=floor.floor_id)
+    label = lr.async_get(hass).async_create("Mirrors")
+    dr.async_get(hass).async_update_device(
+        _device(hass, config_entry).id, area_id=area.id, labels={label.label_id}
+    )
+    ids = {"area_id": area.id, "floor_id": floor.floor_id, "label_id": label.label_id}
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SET_LOCATION,
+        {target: ids[target], "name": "Madrid", "latitude": 40.4, "longitude": -3.7},
+        blocking=True,
+    )
+    mock_device.set_location.assert_called_once_with("Madrid", 40.4, -3.7)
+
+
+@pytest.mark.skipif(
+    "exclude" not in cv.TARGET_SERVICE_FIELDS,
+    reason="Home Assistant has had exclude in targets since 2026.11",
+)
+async def test_set_location_with_an_exclusion(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    """Both mirrors are in the area, and the target excludes one of them."""
+    other = _second_mirror()
+    await _setup(hass, config_entry)
+    await _setup(hass, other)
+
+    area = ar.async_get(hass).async_create("Bathroom")
+    for entry in (config_entry, other):
+        dr.async_get(hass).async_update_device(_device(hass, entry).id, area_id=area.id)
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SET_LOCATION,
+        {
+            "area_id": area.id,
+            "exclude": {"device_id": _device(hass, other).id},
+            "name": "Madrid",
+            "latitude": 40.4,
+            "longitude": -3.7,
+        },
+        blocking=True,
+    )
+    mock_device.set_location.assert_called_once_with("Madrid", 40.4, -3.7)
+
+    # Without the exclusion, both are written to.
+    mock_device.set_location.reset_mock()
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SET_LOCATION,
+        {"area_id": area.id, "name": "Madrid", "latitude": 40.4, "longitude": -3.7},
+        blocking=True,
+    )
+    assert mock_device.set_location.call_count == 2
 
 
 async def test_set_location_service_no_target(

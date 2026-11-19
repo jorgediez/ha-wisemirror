@@ -128,7 +128,9 @@ confirmed by the mirror; if it doesn't acknowledge a command, you get an error i
 
 ### `wisemirror.set_location`
 
-Sets the weather location manually. Target one or more mirror devices.
+Sets the weather location manually. Target one or more mirrors: by device, by any of their
+entities, or by area, floor or label. From Home Assistant 2026.11, the target can also exclude
+some of them.
 
 ```yaml
 action: wisemirror.set_location
