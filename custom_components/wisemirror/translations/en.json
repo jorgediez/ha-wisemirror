@@ -100,6 +100,9 @@
     "command_not_acknowledged": {
       "message": "The mirror at {host} did not acknowledge the command."
     },
+    "current_state_unknown": {
+      "message": "Couldn't read the current settings of the mirror at {host}, so the change wasn't sent: it would have overwritten them. Try again."
+    },
     "no_target_mirror": {
       "message": "No loaded WiseMirror device matches the selected target."
     }

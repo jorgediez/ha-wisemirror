@@ -100,6 +100,9 @@
     "command_not_acknowledged": {
       "message": "El espejo en {host} no confirmó la orden."
     },
+    "current_state_unknown": {
+      "message": "No se pudo leer la configuración actual del espejo en {host}, así que no se envió el cambio: la habría sobrescrito. Inténtalo de nuevo."
+    },
     "no_target_mirror": {
       "message": "Ningún dispositivo WiseMirror cargado coincide con el destino seleccionado."
     }

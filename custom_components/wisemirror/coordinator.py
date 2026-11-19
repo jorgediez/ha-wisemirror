@@ -19,6 +19,8 @@ from .protocol import WiseMirrorDevice, discover
 _LOGGER = logging.getLogger(__name__)
 
 type WiseMirrorConfigEntry = ConfigEntry[WiseMirrorCoordinator]
+# A device write: the WiseMirrorDevice method and its arguments.
+type _Write = tuple[Callable[..., bool], tuple[Any, ...]]
 
 
 class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -42,8 +44,9 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=scan_interval_seconds),
         )
         self.device = device
-        # The mirror handles one command at a time, and some commands (weather)
-        # are built from the current state of others: serialize all writes.
+        # Some commands (weather, night window) carry settings besides the one
+        # changed, taken from the current state: one write at a time, each
+        # built from the state its predecessor left.
         self._write_lock = asyncio.Lock()
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -97,12 +100,13 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> None:
         """Change one half of the weather command, keeping the other half as is."""
 
-        def _build() -> tuple[Callable[..., bool], tuple[Any, ...]]:
+        def _build() -> _Write | None:
             data = self.data or {}
-            return self.device.set_weather, (
-                bool(data.get("two_day")) if two_day is None else two_day,
-                data.get("server_raw", 255) if server_raw is None else server_raw,
-            )
+            day = data.get("two_day") if two_day is None else two_day
+            server = data.get("server_raw") if server_raw is None else server_raw
+            if day is None or server is None:
+                return None
+            return self.device.set_weather, (bool(day), server)
 
         await self._async_write(_build)
 
@@ -113,19 +117,35 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> None:
         """Change the night-mode start or end time, keeping the other one as is."""
 
-        def _build() -> tuple[Callable[..., bool], tuple[Any, ...]]:
+        def _build() -> _Write | None:
             data = self.data or {}
-            s = start or data.get("night_start") or (0, 0)
-            e = end or data.get("night_end") or (0, 0)
+            s = start or data.get("night_start")
+            e = end or data.get("night_end")
+            if s is None or e is None:
+                return None
             return self.device.set_night_time, (s[0], s[1], e[0], e[1])
 
         await self._async_write(_build)
 
-    async def _async_write(
-        self, build: Callable[[], tuple[Callable[..., bool], tuple[Any, ...]]]
-    ) -> None:
+    async def _async_write(self, build: Callable[[], _Write | None]) -> None:
+        """Build a write from the latest state, send it, then refresh.
+
+        A builder returns None when part of the command is a setting the last
+        poll didn't return (one of its replies was lost). That setting is read
+        again rather than guessed: a default would overwrite it on the mirror.
+        """
         async with self._write_lock:
-            func, args = build()  # built under the lock, from the latest state
+            write = build()  # built under the lock, from the latest state
+            if write is None:
+                await self.async_refresh()
+                write = build()
+            if write is None:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="current_state_unknown",
+                    translation_placeholders={"host": self.device.host},
+                )
+            func, args = write
             ok = await self.hass.async_add_executor_job(func, *args)
             await self.async_refresh()
         if not ok:

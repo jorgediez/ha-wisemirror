@@ -6,10 +6,11 @@ synchronous; the integration runs them in the executor.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 import re
 import socket
+import threading
 import urllib.parse
 
 _LOGGER = logging.getLogger(__name__)
@@ -190,6 +191,11 @@ class WiseMirrorDevice:
     bssid: str | None = None
     timeout: float = 1.0
     retries: int = 4
+    # The mirror handles one command at a time: a poll and a write run in
+    # different executor threads, so they take turns.
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False, compare=False
+    )
 
     # ---- low level ----
     def _socket(self, port: int, timeout: float) -> socket.socket:
@@ -256,9 +262,10 @@ class WiseMirrorDevice:
     # ---- reads ----
     def poll(self) -> dict:
         """Read everything; raise ConnectionError if the mirror is unreachable."""
-        probe = self._probe()
-        settings = self._send(36, bytes([0]))
-        weather = self._send(41, bytes([0]))
+        with self._lock:
+            probe = self._probe()
+            settings = self._send(36, bytes([0]))
+            weather = self._send(41, bytes([0]))
         if not probe and settings is None:
             raise ConnectionError(f"WiseMirror at {self.host} not responding")
 
@@ -309,7 +316,8 @@ class WiseMirrorDevice:
 
     # ---- writes (return True on ack) ----
     def _ok(self, logical_id: int, payload: bytes) -> bool:
-        return self._send(logical_id, payload) is not None
+        with self._lock:
+            return self._send(logical_id, payload) is not None
 
     def set_brightness(self, value: int) -> bool:
         """Set the display brightness (0-100)."""
