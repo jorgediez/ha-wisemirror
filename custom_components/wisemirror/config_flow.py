@@ -121,7 +121,7 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
             device = WiseMirrorDevice(host=host)
             try:
                 state = await self.hass.async_add_executor_job(device.poll)
-            except ConnectionError:
+            except OSError:
                 errors["base"] = "cannot_connect"
             else:
                 bssid = state.get("bssid") or host
@@ -153,7 +153,7 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
             device = WiseMirrorDevice(host=host)
             try:
                 state = await self.hass.async_add_executor_job(device.poll)
-            except ConnectionError:
+            except OSError:
                 errors["base"] = "cannot_connect"
             else:
                 # A mirror added before its MAC could be read is keyed by its IP,

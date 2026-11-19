@@ -49,9 +49,10 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             return await self.hass.async_add_executor_job(self.device.poll)
-        except ConnectionError as err:
-            # mirror may have changed IP (DHCP) — try to relocate by bssid
-            if self.device.bssid:
+        except OSError as err:
+            # The mirror may have a new IP (DHCP): look for it by its MAC. Not for
+            # a mirror added before its MAC could be read, which is keyed by its IP.
+            if self.device.bssid and ":" in self.device.bssid:
                 relocated = await self.hass.async_add_executor_job(
                     self._relocate, self.device.bssid
                 )
@@ -69,7 +70,7 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     )
                     try:
                         return await self.hass.async_add_executor_job(self.device.poll)
-                    except ConnectionError:
+                    except OSError:
                         pass
             raise UpdateFailed(
                 translation_domain=DOMAIN,

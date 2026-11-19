@@ -67,12 +67,13 @@ async def test_manual_when_nothing_discovered(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "manual"
 
-    mock_device.poll.side_effect = ConnectionError
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_HOST: " 192.168.1.50 "}
-    )
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "cannot_connect"}
+    for error in (ConnectionError, OSError(101, "Network is unreachable")):
+        mock_device.poll.side_effect = error
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: " 192.168.1.50 "}
+        )
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"base": "cannot_connect"}
 
     mock_device.poll.side_effect = None
     mock_device.poll.return_value = {"bssid": BSSID, "model": MODEL}
@@ -189,11 +190,17 @@ async def test_reconfigure_changes_the_address(
     assert "update listener" not in caplog.text
 
 
+@pytest.mark.parametrize(
+    "error", [ConnectionError, OSError(101, "Network is unreachable")]
+)
 async def test_reconfigure_retries_an_unreachable_address(
-    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    error: BaseException,
 ) -> None:
     config_entry.add_to_hass(hass)
-    mock_device.poll.side_effect = ConnectionError
+    mock_device.poll.side_effect = error
 
     result = await _reconfigure(hass, config_entry, "192.168.1.99")
 

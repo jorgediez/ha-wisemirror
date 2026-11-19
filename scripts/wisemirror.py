@@ -18,6 +18,7 @@ Usage:
 import argparse
 import json
 import socket
+import sys
 import urllib.parse
 
 BCAST = "255.255.255.255"
@@ -59,6 +60,31 @@ def build_frame(wire_opcode: int, payload: bytes, sub: int = 0) -> bytes:
     )
 
 
+def ack_ok(ack: bytes, wire_opcode: int) -> bool:
+    """Whether a reply is a valid ack to wire_opcode.
+
+    Checks the header, opcode, ack flag, checksum and trailer, as the integration
+    does. Not the declared length: a 2M09 declares one byte fewer than it sends
+    in its settings reply, while its checksum covers every byte sent.
+    """
+    if (
+        len(ack) < 8
+        or ack[0] != 0xA5
+        or ack[-1] != 0x5A
+        or ack[1] != wire_opcode
+        or ack[5] != 1
+    ):
+        return False
+    return (sum(ack[1:6]) + sum(ack[6:-2])) & 0xFF == ack[-2]
+
+
+def _int(text: str):
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
 def parse_reply(text: str):
     """a0.b.a parser. Returns dict or None."""
     text = text.strip()
@@ -68,10 +94,7 @@ def parse_reply(text: str):
     main = text
     if "," in text:
         main, hum = text.split(",", 1)
-        try:
-            humidity = int(hum)  # raw; app clamps to 1..99 for display
-        except ValueError:
-            humidity = None
+        humidity = _int(hum)  # raw; app clamps to 1..99 for display
     fields = main.split("+")
     if len(fields) < 2:
         return None
@@ -90,10 +113,13 @@ def parse_reply(text: str):
         "humidity": humidity,
     }
     # temp probe replies carry temp/unit/version in fields[1..3]
-    if len(fields) >= 4 and fields[2].lstrip("-").isdigit():
-        out["temp"] = int(fields[1])
-        out["unit"] = int(fields[2])
-        out["version"] = fields[3]
+    # (numbers that don't parse are left out rather than failing the reply)
+    if len(fields) >= 4:
+        temp, unit = _int(fields[1]), _int(fields[2])
+        if temp is not None and unit is not None:
+            out["temp"] = temp
+            out["unit"] = unit
+            out["version"] = fields[3]
     return out
 
 
@@ -107,21 +133,22 @@ def discover(probe: bytes = PROBE_TEMP, listen_port: int = 4026, timeout: float 
     except OSError:
         s.bind(("", 0))  # fall back to ephemeral port
     s.settimeout(timeout)
-    s.sendto(probe, (BCAST, DISCOVERY_PORT))
     found, seen = [], set()
     try:
+        s.sendto(probe, (BCAST, DISCOVERY_PORT))
         while True:
             data, addr = s.recvfrom(256)
             d = parse_reply(data.decode("utf-8", "ignore"))
             if d and d["bssid"] not in seen:
                 seen.add(d["bssid"])
-                # A mirror without an address of its own reports 0.0.0.0; use the
-                # address the reply came from. A comparison, not a bind.
-                if not d.get("address") or d["address"] == "0.0.0.0":  # noqa: S104
-                    d["address"] = addr[0]
+                # The address the reply came from, not the one it states: a mirror
+                # can state 0.0.0.0, and any device on the LAN can state any address.
+                d["address"] = addr[0]
                 found.append(d)
     except TimeoutError:
         pass
+    except OSError as err:
+        print(f"discovery stopped: {err}", file=sys.stderr)
     finally:
         s.close()
     return found
@@ -132,28 +159,36 @@ def send_command(
 ):
     """UDP to mirror:8001 with one framed command; wait for ack (WifiBaseManager.r).
 
-    Returns (ok, ack_bytes): ok is True when the mirror echoes ack[5]==1 and the
-    expected wire opcode in ack[1]."""
+    Returns (ok, ack_bytes): ok is True for a valid ack (see ack_ok). A reply that
+    isn't one is retried, like a timeout; ack_bytes is the last reply received,
+    valid or not, so an odd one can still be seen.
+
+    The socket is connected to the mirror, so only replies from it are read: it
+    answers from the port it was sent to."""
     if logical_id == 35:  # device name: wire layer prepends a length byte
         payload = bytes([len(payload)]) + payload
     wire = LOGICAL_TO_WIRE.get(logical_id)
     if wire is None:
         raise ValueError(f"unknown logical opcode {logical_id}")
     frame = build_frame(wire, payload)
+    last = b""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(("", 0))
-    s.settimeout(timeout)
     try:
+        s.settimeout(timeout)
+        s.connect((ip, CONTROL_PORT))
         for _ in range(retries):
-            s.sendto(frame, (ip, CONTROL_PORT))
+            s.send(frame)
             try:
-                ack, _ = s.recvfrom(250)
+                last = s.recv(512)
             except TimeoutError:
                 continue
-            ok = len(ack) > 5 and ack[5] == 1 and ack[1] == wire
-            return ok, ack
-        return False, b""
+            if ack_ok(last, wire):
+                return True, last
+        return False, last
+    except OSError as err:
+        # Network unreachable, or the port refused (reported on the next read).
+        print(f"{ip}: {err}", file=sys.stderr)
+        return False, last
     finally:
         s.close()
 
@@ -185,7 +220,7 @@ SETTERS = {
     # weather: z.d.a(rollScreen, todayWeather, server) -> [bit0|bit1<<1, server, 0, 0]
     #   bit0 rollScreen = "weather for two days" display toggle (1=on)
     #   bit1 todayWeather = separate flag, not exposed in app UI (keep 0)
-    #   server: 255=Auto, 0..4 = No1..No5
+    #   server: 255=Auto, 1=No1, 2=No2, 3=No3, 0=No4, 4=No5 (docs/PROTOCOL.md)
     # args: <twoday 0|1> [server]   (todayWeather forced 0)
     "weather": (
         40,

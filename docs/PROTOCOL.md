@@ -34,7 +34,9 @@ REAL capture (confirmed against hardware, model 2M09):
   **`unit=1` corresponds to °C** (i.e. the SendTempUnit 0/1 mapping is likely 1=°C, 0=°F — the
   opposite of the initial guess; confirm by toggling). `humidity` came back `0` on this unit.
 - For the **temp** probe: `temp = field[1]`, `unit = field[2]`, `version = field[3]`.
-- `bssid = field[-2]`, `address = field[-1]` (the mirror's LAN IP — use this for control).
+- `bssid = field[-2]`, `address = field[-1]` (the mirror's LAN IP). The integration controls the
+  mirror at the address the reply came **from** instead: a mirror can state `0.0.0.0`, and any
+  device on the LAN can state any address. The reply comes from port 8000.
 - `humidity` (1–99) is the part after the comma, if present.
 
 This probe alone is enough to feed **indoor temperature + humidity** sensors into HomeAssistant,
@@ -46,7 +48,8 @@ with no TCP connection required.
 
 Send one framed command as a **UDP datagram to `<mirror_ip>:8001`** (`WifiBaseManager.r`), from a
 local socket bound to a random port, with an ~800 ms timeout. The mirror replies with an ack
-datagram: **success = `ack[5] == 1`** and `ack[1]` echoes the wire opcode. The app retries on timeout.
+datagram from port 8001: **success = `ack[5] == 1`** and `ack[1]` echoes the wire opcode. The app
+retries on timeout.
 (The TCP port `8408` seen in the app is only for AP/SoftAP provisioning at `192.168.4.1`, not normal LAN use.)
 
 ### Frame format (`a0.a.c`)
@@ -64,6 +67,17 @@ offset  value
 total length = payloadLen + 8
 ```
 (Sum the payload as plain unsigned bytes; the `&0xFF` makes signed/unsigned equivalent.)
+
+Replies use the same framing. Captured from a 2M09 on V1.9.250215, the checksum and trailer were
+right on every reply (settings, weather, and a write), so the integration rejects a reply where
+either is wrong. **The declared length is not reliable:** the settings reply declares a payload of
+75 bytes and sends 76, with the checksum covering all 76. The payload is everything between byte 6
+and the checksum, whatever the length bytes say.
+
+Settings reply payload (offsets from byte 6): `0` flags (bit0 key tone, bit1 24-hour, bit2
+day/month, bit3 °C), `1` brightness, `24` night mode on, `25..28` night start h/m and end h/m, `29`
+night brightness, `30..31` location length (big-endian), then the location string. Weather reply
+payload: `0` flags (bit0 two-day), `1` server.
 
 > Note: BLE additionally fragments this frame into 20-byte chunks (`[randId, totalLen, offset, ...17B]`).
 > Wi‑Fi (UDP) does **not** — the whole frame goes in one datagram. Ignore the chunking for Wi‑Fi.
