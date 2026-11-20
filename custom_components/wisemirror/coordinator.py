@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 import logging
 from typing import Any
@@ -11,16 +11,18 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import CONF_HOST, DOMAIN
-from .protocol import WiseMirrorDevice, discover
+from .discovery import async_discover_mirrors
+from .protocol import WiseMirrorDevice
 
 _LOGGER = logging.getLogger(__name__)
 
 type WiseMirrorConfigEntry = ConfigEntry[WiseMirrorCoordinator]
 # A device write: the WiseMirrorDevice method and its arguments.
-type _Write = tuple[Callable[..., bool], tuple[Any, ...]]
+type _Write = tuple[Callable[..., Awaitable[bool]], tuple[Any, ...]]
 
 
 class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -42,6 +44,8 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             config_entry=entry,
             name=f"{DOMAIN} {device.host}",
             update_interval=timedelta(seconds=scan_interval_seconds),
+            # Most polls find nothing changed: don't write every entity's state.
+            always_update=False,
         )
         self.device = device
         # Some commands (weather, night window) carry settings besides the one
@@ -50,15 +54,18 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._write_lock = asyncio.Lock()
 
     async def _async_update_data(self) -> dict[str, Any]:
+        data = await self._async_poll()
+        self._async_update_device(data)
+        return data
+
+    async def _async_poll(self) -> dict[str, Any]:
         try:
-            return await self.hass.async_add_executor_job(self.device.poll)
+            return await self.device.poll()
         except OSError as err:
             # The mirror may have a new IP (DHCP): look for it by its MAC. Not for
             # a mirror added before its MAC could be read, which is keyed by its IP.
             if self.device.bssid and ":" in self.device.bssid:
-                relocated = await self.hass.async_add_executor_job(
-                    self._relocate, self.device.bssid
-                )
+                relocated = await self._async_relocate(self.device.bssid)
                 if relocated and relocated != self.device.host:
                     _LOGGER.info(
                         "WiseMirror %s moved from %s to %s",
@@ -72,7 +79,7 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         data={**self.config_entry.data, CONF_HOST: relocated},
                     )
                     try:
-                        return await self.hass.async_add_executor_job(self.device.poll)
+                        return await self.device.poll()
                     except OSError:
                         pass
             raise UpdateFailed(
@@ -81,14 +88,30 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 translation_placeholders={"host": self.device.host, "error": str(err)},
             ) from err
 
-    @staticmethod
-    def _relocate(bssid: str) -> str | None:
-        for m in discover():
+    async def _async_relocate(self, bssid: str) -> str | None:
+        for m in await async_discover_mirrors(self.hass):
             if m.get("bssid") == bssid:
                 return m.get("address")
         return None
 
-    async def async_send(self, func: Callable[..., bool], *args: Any) -> None:
+    def _async_update_device(self, data: dict[str, Any]) -> None:
+        """Keep the device's firmware and model as the mirror reports them."""
+        ident = self.config_entry.unique_id or self.device.host
+        registry = dr.async_get(self.hass)
+        device = registry.async_get_device(identifiers={(DOMAIN, ident)})
+        if device is None:  # not created yet: the entities will create it
+            return
+        changes = {
+            attr: data[key]
+            for attr, key in (("sw_version", "version"), ("model", "model"))
+            if data.get(key) and data[key] != getattr(device, attr)
+        }
+        if changes:
+            registry.async_update_device(device.id, **changes)
+
+    async def async_send(
+        self, func: Callable[..., Awaitable[bool]], *args: Any
+    ) -> None:
         """Run a device write, then refresh state.
 
         Raises HomeAssistantError if the mirror did not acknowledge the command.
@@ -146,7 +169,7 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     translation_placeholders={"host": self.device.host},
                 )
             func, args = write
-            ok = await self.hass.async_add_executor_job(func, *args)
+            ok = await func(*args)
             await self.async_refresh()
         if not ok:
             raise HomeAssistantError(

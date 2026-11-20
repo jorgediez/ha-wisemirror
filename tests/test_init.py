@@ -392,3 +392,34 @@ async def test_a_failed_poll_is_reported_in_the_users_language(
     error = coordinator.last_exception
     assert error.translation_key == "update_failed"
     assert error.translation_placeholders == {"host": HOST, "error": "gone"}
+
+
+async def test_firmware_update_reaches_the_device(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    state: dict[str, Any],
+) -> None:
+    await _setup(hass, config_entry)
+    assert _device(hass, config_entry).sw_version == "V1.9.250215"
+    state["version"] = "V2.0.260101"
+    await config_entry.runtime_data.async_refresh()
+    assert _device(hass, config_entry).sw_version == "V2.0.260101"
+
+
+async def test_an_unchanged_poll_updates_no_entity(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    state: dict[str, Any],
+) -> None:
+    await _setup(hass, config_entry)
+    coordinator = config_entry.runtime_data
+    updates: list[None] = []
+    unsub = coordinator.async_add_listener(lambda: updates.append(None))
+    await coordinator.async_refresh()
+    assert updates == []
+    state["brightness"] = 50
+    await coordinator.async_refresh()
+    assert len(updates) == 1
+    unsub()

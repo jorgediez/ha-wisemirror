@@ -54,7 +54,8 @@ default because not all models support it.
   ([iOS](https://apps.apple.com/us/app/wisemirror/id1397701137); on Android search the Play Store
   for "WiseMirror", package `com.smartteam.smartmirror`). After that the app isn't needed anymore.
 - Home Assistant and the mirror must be on the **same network segment (L2/VLAN)**. Discovery uses
-  a UDP broadcast to port `8000`, and control uses UDP port `8001` on the mirror.
+  a UDP broadcast to port `8000`, sent on each network interface Home Assistant is set to use
+  (**Settings → System → Network**), and control uses UDP port `8001` on the mirror.
 - A **DHCP reservation** for the mirror is recommended. If its IP changes anyway, the integration
   will find it again by its MAC address.
 - Home Assistant **2025.1** or newer. The integration icon is shown from 2026.3 onwards.
@@ -172,9 +173,9 @@ automation:
 
 ## Troubleshooting
 
-- **Mirror not discovered**: make sure Home Assistant is on the same VLAN/subnet as the mirror and
-  that UDP broadcasts aren't filtered (some mesh/guest networks isolate clients). Try adding it
-  by IP.
+- **Mirror not discovered**: make sure Home Assistant is on the same VLAN/subnet as the mirror, that
+  the interface on that network is enabled under **Settings → System → Network**, and that UDP
+  broadcasts aren't filtered (some mesh/guest networks isolate clients). Try adding it by IP.
 - **"Could not reach a mirror at that address"**: check the IP and that UDP ports `8000` and
   `8001` on the mirror are reachable from Home Assistant.
 - **Debug logging**: add this to `configuration.yaml` and restart:

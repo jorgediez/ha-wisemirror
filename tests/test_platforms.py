@@ -211,7 +211,7 @@ async def _poll_without(
     setup_mirror: MagicMock, config_entry: MockConfigEntry, keys: tuple[str, ...]
 ) -> dict[str, Any]:
     """Make the last poll miss keys, as when one reply of a poll is lost."""
-    full = {**setup_mirror.poll(), **WEATHER}
+    full = {**await setup_mirror.poll(), **WEATHER}
     partial = {k: v for k, v in full.items() if k not in keys}
     setup_mirror.poll.side_effect = lambda: dict(partial)
     await config_entry.runtime_data.async_refresh()

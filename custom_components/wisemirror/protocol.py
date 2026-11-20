@@ -1,16 +1,16 @@
-"""Low-level WiseMirror / Alasta mirror LAN protocol (blocking sockets).
+"""Low-level WiseMirror / Alasta mirror LAN protocol (asyncio UDP).
 
-Reverse-engineered from the WiseMirror app. See PROTOCOL.md. All calls are
-synchronous; the integration runs them in the executor.
+Reverse-engineered from the WiseMirror app. See PROTOCOL.md.
 """
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 import logging
 import re
-import socket
-import threading
+from typing import Any
 import urllib.parse
 
 _LOGGER = logging.getLogger(__name__)
@@ -150,22 +150,131 @@ def _decode_location(raw: bytes) -> tuple[str, float | None, float | None]:
     return name, lat, lon
 
 
-def discover(timeout: float = 2.5) -> list[dict]:
-    """Broadcast probe; return list of mirrors found on the LAN."""
-    found, seen = [], set()
+def _parse_state(
+    host: str,
+    bssid: str | None,
+    probe: dict | None,
+    settings: bytes | None,
+    weather: bytes | None,
+) -> dict:
+    """Build the mirror's state from a poll's three replies (any may be missing)."""
+    state: dict = {"available": True, "host": host}
+    if probe:
+        state["bssid"] = probe.get("bssid") or bssid
+        state["model"] = probe.get("model")
+        state["version"] = probe.get("version")
+        hum = probe.get("humidity")
+        state["has_humidity_sensor"] = bool(hum)  # 0 => no sensor
+        state["humidity"] = hum if hum else None
+    # Each field is read only if the reply reaches it: other models may send
+    # less than the 2M09, and a missing field is better than a failed poll.
+    if settings is not None and len(settings) > _S_BRIGHTNESS:
+        flags = settings[_S_FLAGS]
+        unit = (flags >> 3) & 1
+        state["key_tone"] = bool(flags & 1)
+        state["hour_24"] = bool((flags >> 1) & 1)
+        state["day_month"] = bool((flags >> 2) & 1)
+        state["unit"] = unit  # 1=°C, 0=°F
+        state["brightness"] = settings[_S_BRIGHTNESS]
+        # indoor temperature, normalised to °C
+        if probe and probe.get("temp") is not None:
+            t = probe["temp"]
+            state["temperature_c"] = (
+                round((t - 32) * 5 / 9, 1) if unit == 0 else float(t)
+            )
+    if settings is not None and len(settings) > _S_NIGHT_LIGHT:
+        sh, sm, eh, em = settings[_S_NIGHT_TIMES : _S_NIGHT_TIMES + 4]
+        state["night_on"] = bool(settings[_S_NIGHT_ON])
+        state["night_start"] = (sh, sm)
+        state["night_end"] = (eh, em)
+        state["night_light"] = settings[_S_NIGHT_LIGHT]
+    if settings is not None and len(settings) >= _S_LOCATION_LEN + 2:
+        start = _S_LOCATION_LEN + 2
+        ln = (settings[_S_LOCATION_LEN] << 8) | settings[_S_LOCATION_LEN + 1]
+        name, lat, lon = _decode_location(settings[start : start + ln])
+        state["location"] = name
+        state["location_lat"] = lat
+        state["location_lon"] = lon
+    if weather is not None and len(weather) > _W_SERVER:
+        wf = weather[_W_FLAGS]
+        state["two_day"] = bool(wf & 1)
+        state["today_weather"] = (wf >> 1) & 1
+        state["server"] = RAW_TO_SERVER.get(weather[_W_SERVER], "auto")
+        state["server_raw"] = weather[_W_SERVER]
+    return state
+
+
+class _Endpoint(asyncio.DatagramProtocol):
+    """Queues what arrives on a datagram endpoint: replies, and network errors."""
+
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[tuple[bytes, tuple[str, int]] | OSError] = (
+            asyncio.Queue()
+        )
+
+    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
+        """Queue a reply with the address it came from."""
+        self._queue.put_nowait((data, addr))
+
+    def error_received(self, exc: OSError) -> None:
+        """Queue a network error: unreachable, or the port refused (ICMP)."""
+        self._queue.put_nowait(exc)
+
+    async def receive(self) -> tuple[bytes, tuple[str, int]]:
+        """Return the next reply, or raise the network error."""
+        item = await self._queue.get()
+        if isinstance(item, OSError):
+            raise item
+        return item
+
+
+async def _open_endpoint(
+    **kwargs: Any,
+) -> tuple[asyncio.DatagramTransport, _Endpoint]:
+    """Open a UDP endpoint; raise OSError if it can't be (no route, for one)."""
+    loop = asyncio.get_running_loop()
+    return await loop.create_datagram_endpoint(_Endpoint, **kwargs)
+
+
+async def discover(
+    addresses: Iterable[str] = (BCAST,),
+    duration: float = 2.5,
+    interval: float = 0.8,
+) -> list[dict]:
+    """Probe the broadcast addresses for duration; return the mirrors that answer.
+
+    The probe is sent again every interval during the scan: a mirror doesn't
+    answer every broadcast.
+    """
+    found: list[dict] = []
+    seen: set[str] = set()
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        transport, endpoint = await _open_endpoint(
+            # Replies come back to the address and port the probe left from.
+            local_addr=("0.0.0.0", 0),  # noqa: S104
+            allow_broadcast=True,
+        )
     except OSError as err:
         _LOGGER.debug("Cannot open a socket to discover mirrors: %s", err)
         return found
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + duration
+    next_probe = loop.time()
     try:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        s.bind(("", 0))
-        s.settimeout(timeout)
-        s.sendto(PROBE_TEMP, (BCAST, DISCOVERY_PORT))
-        while True:
-            data, addr = s.recvfrom(256)
+        while (now := loop.time()) < deadline:
+            if now >= next_probe:
+                for address in addresses:
+                    transport.sendto(PROBE_TEMP, (address, DISCOVERY_PORT))
+                next_probe = now + interval
+            try:
+                async with asyncio.timeout(min(next_probe, deadline) - now):
+                    data, addr = await endpoint.receive()
+            except TimeoutError:
+                continue
+            except OSError as err:
+                # One unreachable network shouldn't end the scan of the others.
+                _LOGGER.debug("Discovery: %s", err)
+                continue
             d = _parse_probe(data.decode("utf-8", "ignore"))
             if d and d["bssid"] not in seen:
                 seen.add(d["bssid"])
@@ -174,12 +283,8 @@ def discover(timeout: float = 2.5) -> list[dict]:
                 # can state any address.
                 d["address"] = addr[0]
                 found.append(d)
-    except TimeoutError:
-        pass
-    except OSError as err:
-        _LOGGER.debug("Discovery stopped: %s", err)
     finally:
-        s.close()
+        transport.close()
     return found
 
 
@@ -191,60 +296,57 @@ class WiseMirrorDevice:
     bssid: str | None = None
     timeout: float = 1.0
     retries: int = 4
-    # The mirror handles one command at a time: a poll and a write run in
-    # different executor threads, so they take turns.
-    _lock: threading.Lock = field(
-        default_factory=threading.Lock, init=False, repr=False, compare=False
+    probe_timeout: float = 2.0
+    # The mirror handles one command at a time: a poll and a write take turns.
+    _lock: asyncio.Lock = field(
+        default_factory=asyncio.Lock, init=False, repr=False, compare=False
     )
 
     # ---- low level ----
-    def _socket(self, port: int, timeout: float) -> socket.socket:
-        """Open a UDP socket connected to the mirror.
+    async def _connect(
+        self, port: int
+    ) -> tuple[asyncio.DatagramTransport, _Endpoint] | None:
+        """Open a UDP endpoint connected to the mirror, or None if it can't be.
 
-        Connected, the socket only receives what comes from that address and
-        port, which is where the mirror answers from.
+        Connected, it only receives what comes from that address and port, which
+        is where the mirror answers from.
         """
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            s.settimeout(timeout)
-            s.connect((self.host, port))
-        except OSError:
-            s.close()
-            raise
-        return s
-
-    def _probe(self) -> dict | None:
-        try:
-            s = self._socket(DISCOVERY_PORT, self.timeout + 1.0)
+            return await _open_endpoint(remote_addr=(self.host, port))
         except OSError as err:
             _LOGGER.debug("Cannot reach %s: %s", self.host, err)
             return None
+
+    async def _probe(self) -> dict | None:
+        if (connected := await self._connect(DISCOVERY_PORT)) is None:
+            return None
+        transport, endpoint = connected
         try:
-            s.send(PROBE_TEMP)
-            data = s.recv(256)
-        except OSError as err:
-            _LOGGER.debug("No probe reply from %s: %s", self.host, err)
+            transport.sendto(PROBE_TEMP)
+            async with asyncio.timeout(self.probe_timeout):
+                data, _ = await endpoint.receive()
+        except OSError as err:  # TimeoutError included
+            _LOGGER.debug("No probe reply from %s: %r", self.host, err)
             return None
         finally:
-            s.close()
+            transport.close()
         return _parse_probe(data.decode("utf-8", "ignore"))
 
-    def _send(self, logical_id: int, payload: bytes) -> bytes | None:
+    async def _send(self, logical_id: int, payload: bytes) -> bytes | None:
         """Send a command/read; return the ack's payload, or None without one."""
         if logical_id == 35:
             payload = bytes([len(payload)]) + payload
         wire = _WIRE[logical_id]
         frame = _build_frame(wire, payload)
-        try:
-            s = self._socket(CONTROL_PORT, self.timeout)
-        except OSError as err:
-            _LOGGER.debug("Cannot reach %s: %s", self.host, err)
+        if (connected := await self._connect(CONTROL_PORT)) is None:
             return None
+        transport, endpoint = connected
         try:
             for _ in range(self.retries):
-                s.send(frame)
+                transport.sendto(frame)
                 try:
-                    ack = s.recv(512)
+                    async with asyncio.timeout(self.timeout):
+                        ack, _ = await endpoint.receive()
                 except TimeoutError:
                     continue
                 reply = _ack_payload(ack, wire)
@@ -253,113 +355,69 @@ class WiseMirrorDevice:
                 _LOGGER.debug("Ignoring reply %s from %s", ack.hex(), self.host)
             return None
         except OSError as err:
-            # Network unreachable, or the port refused (reported on the next read).
+            # Network unreachable, or the port refused.
             _LOGGER.debug("Command %#04x to %s failed: %s", wire, self.host, err)
             return None
         finally:
-            s.close()
+            transport.close()
 
     # ---- reads ----
-    def poll(self) -> dict:
+    async def poll(self) -> dict:
         """Read everything; raise ConnectionError if the mirror is unreachable."""
-        with self._lock:
-            probe = self._probe()
-            settings = self._send(36, bytes([0]))
-            weather = self._send(41, bytes([0]))
+        async with self._lock:
+            probe = await self._probe()
+            settings = await self._send(36, bytes([0]))
+            weather = await self._send(41, bytes([0]))
         if not probe and settings is None:
             raise ConnectionError(f"WiseMirror at {self.host} not responding")
-
-        state: dict = {"available": True, "host": self.host}
-        if probe:
-            state["bssid"] = probe.get("bssid") or self.bssid
-            state["model"] = probe.get("model")
-            state["version"] = probe.get("version")
-            hum = probe.get("humidity")
-            state["has_humidity_sensor"] = bool(hum)  # 0 => no sensor
-            state["humidity"] = hum if hum else None
-        # Each field is read only if the reply reaches it: other models may send
-        # less than the 2M09, and a missing field is better than a failed poll.
-        if settings is not None and len(settings) > _S_BRIGHTNESS:
-            flags = settings[_S_FLAGS]
-            unit = (flags >> 3) & 1
-            state["key_tone"] = bool(flags & 1)
-            state["hour_24"] = bool((flags >> 1) & 1)
-            state["day_month"] = bool((flags >> 2) & 1)
-            state["unit"] = unit  # 1=°C, 0=°F
-            state["brightness"] = settings[_S_BRIGHTNESS]
-            # indoor temperature, normalised to °C
-            if probe and probe.get("temp") is not None:
-                t = probe["temp"]
-                state["temperature_c"] = (
-                    round((t - 32) * 5 / 9, 1) if unit == 0 else float(t)
-                )
-        if settings is not None and len(settings) > _S_NIGHT_LIGHT:
-            sh, sm, eh, em = settings[_S_NIGHT_TIMES : _S_NIGHT_TIMES + 4]
-            state["night_on"] = bool(settings[_S_NIGHT_ON])
-            state["night_start"] = (sh, sm)
-            state["night_end"] = (eh, em)
-            state["night_light"] = settings[_S_NIGHT_LIGHT]
-        if settings is not None and len(settings) >= _S_LOCATION_LEN + 2:
-            start = _S_LOCATION_LEN + 2
-            ln = (settings[_S_LOCATION_LEN] << 8) | settings[_S_LOCATION_LEN + 1]
-            name, lat, lon = _decode_location(settings[start : start + ln])
-            state["location"] = name
-            state["location_lat"] = lat
-            state["location_lon"] = lon
-        if weather is not None and len(weather) > _W_SERVER:
-            wf = weather[_W_FLAGS]
-            state["two_day"] = bool(wf & 1)
-            state["today_weather"] = (wf >> 1) & 1
-            state["server"] = RAW_TO_SERVER.get(weather[_W_SERVER], "auto")
-            state["server_raw"] = weather[_W_SERVER]
-        return state
+        return _parse_state(self.host, self.bssid, probe, settings, weather)
 
     # ---- writes (return True on ack) ----
-    def _ok(self, logical_id: int, payload: bytes) -> bool:
-        with self._lock:
-            return self._send(logical_id, payload) is not None
+    async def _ok(self, logical_id: int, payload: bytes) -> bool:
+        async with self._lock:
+            return await self._send(logical_id, payload) is not None
 
-    def set_brightness(self, value: int) -> bool:
+    async def set_brightness(self, value: int) -> bool:
         """Set the display brightness (0-100)."""
-        return self._ok(6, bytes([max(0, min(100, int(value)))]))
+        return await self._ok(6, bytes([max(0, min(100, int(value)))]))
 
-    def set_night_brightness(self, value: int) -> bool:
+    async def set_night_brightness(self, value: int) -> bool:
         """Set the night-mode brightness (0-100)."""
-        return self._ok(34, bytes([max(0, min(100, int(value)))]))
+        return await self._ok(34, bytes([max(0, min(100, int(value)))]))
 
-    def set_hour24(self, on: bool) -> bool:
+    async def set_hour24(self, on: bool) -> bool:
         """Switch the clock between 24-hour and 12-hour."""
-        return self._ok(2, bytes([1 if on else 0]))
+        return await self._ok(2, bytes([1 if on else 0]))
 
-    def set_daymonth(self, on: bool) -> bool:
+    async def set_daymonth(self, on: bool) -> bool:
         """Show the date as day/month rather than month/day."""
-        return self._ok(3, bytes([1 if on else 0]))
+        return await self._ok(3, bytes([1 if on else 0]))
 
-    def set_key_tone(self, on: bool) -> bool:
+    async def set_key_tone(self, on: bool) -> bool:
         """Turn the key beep on or off."""
-        return self._ok(1, bytes([1 if on else 0]))
+        return await self._ok(1, bytes([1 if on else 0]))
 
-    def set_unit_celsius(self, celsius: bool) -> bool:
+    async def set_unit_celsius(self, celsius: bool) -> bool:
         """Show temperatures in Celsius rather than Fahrenheit."""
-        return self._ok(4, bytes([1 if celsius else 0]))
+        return await self._ok(4, bytes([1 if celsius else 0]))
 
-    def set_night_mode(self, on: bool) -> bool:
+    async def set_night_mode(self, on: bool) -> bool:
         """Turn night mode on or off."""
-        return self._ok(32, bytes([1 if on else 0]))
+        return await self._ok(32, bytes([1 if on else 0]))
 
-    def set_night_time(self, sh: int, sm: int, eh: int, em: int) -> bool:
+    async def set_night_time(self, sh: int, sm: int, eh: int, em: int) -> bool:
         """Set when night mode starts and ends (hours, minutes)."""
-        return self._ok(33, bytes([sh & 0xFF, sm & 0xFF, eh & 0xFF, em & 0xFF]))
+        return await self._ok(33, bytes([sh & 0xFF, sm & 0xFF, eh & 0xFF, em & 0xFF]))
 
-    def set_weather(self, two_day: bool, server_raw: int) -> bool:
+    async def set_weather(self, two_day: bool, server_raw: int) -> bool:
         """Set two-day weather and the weather server in one command."""
         # payload = [rollScreen|(todayWeather<<1), server, 0, 0]; todayWeather kept 0
-        return self._ok(40, bytes([1 if two_day else 0, server_raw & 0xFF, 0, 0]))
+        return await self._ok(40, bytes([1 if two_day else 0, server_raw & 0xFF, 0, 0]))
 
-    def set_location(
+    async def set_location(
         self, name: str, lat: float, lon: float, accu_key: str = ""
     ) -> bool:
         """Set the location the mirror shows weather for."""
         body = f"{urllib.parse.quote(name)}({lat},{lon})({accu_key})".encode()
         payload = bytes([(len(body) >> 8) & 0xFF, len(body) & 0xFF]) + body
-        return self._ok(31, payload)
+        return await self._ok(31, payload)

@@ -87,8 +87,7 @@ both move faster.
 
 Follow [Home Assistant's own conventions](https://developers.home-assistant.io/docs/development_guidelines)
 and the code already here: entity names and errors translated, no blocking calls in the event loop
-(the protocol client is blocking, so it runs in the executor), comments that say why rather than
-what. Ruff, at line length 88, settles formatting.
+(the protocol client uses asyncio's UDP endpoints), comments that say why rather than what. Ruff, at line length 88, settles formatting.
 
 ## Releasing
 
