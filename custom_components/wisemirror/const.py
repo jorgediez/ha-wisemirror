@@ -4,14 +4,15 @@ from __future__ import annotations
 
 DOMAIN = "wisemirror"
 
-# Global (integration-wide) poll interval, persisted in a Store shared by all mirrors.
+# option: how often this mirror is polled.
 CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL_SECONDS = 60
 MIN_SCAN_INTERVAL_SECONDS = 10
 MAX_SCAN_INTERVAL_SECONDS = 3600
-GLOBAL_DATA_KEY = f"{DOMAIN}_global"
-STORAGE_KEY = f"{DOMAIN}.global_config"
-STORAGE_VERSION = 1
+# Where releases up to 1.2.0 kept one poll interval shared by all mirrors: moved
+# into each mirror's options at startup, then deleted.
+LEGACY_STORAGE_KEY = f"{DOMAIN}.global_config"
+LEGACY_STORAGE_VERSION = 1
 
 CONF_HOST = "host"
 CONF_BSSID = "bssid"

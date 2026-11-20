@@ -9,7 +9,6 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_BSSID, CONF_HOST
 from .coordinator import WiseMirrorConfigEntry
-from .global_config import async_get_scan_interval
 
 TO_REDACT = {
     CONF_BSSID,
@@ -36,7 +35,7 @@ async def async_get_config_entry_diagnostics(
             },
             TO_REDACT,
         ),
-        "scan_interval": await async_get_scan_interval(hass),
+        "scan_interval": int(coordinator.update_interval.total_seconds()),
         "last_update_success": coordinator.last_update_success,
         "state": async_redact_data(coordinator.data or {}, TO_REDACT),
     }

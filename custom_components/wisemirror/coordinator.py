@@ -14,7 +14,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_HOST, DOMAIN
+from .const import CONF_HOST, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
 from .discovery import async_discover_mirrors
 from .protocol import WiseMirrorDevice
 
@@ -23,6 +23,13 @@ _LOGGER = logging.getLogger(__name__)
 type WiseMirrorConfigEntry = ConfigEntry[WiseMirrorCoordinator]
 # A device write: the WiseMirrorDevice method and its arguments.
 type _Write = tuple[Callable[..., Awaitable[bool]], tuple[Any, ...]]
+
+
+def scan_interval(entry: ConfigEntry) -> timedelta:
+    """Return how often the entry's mirror is polled."""
+    return timedelta(
+        seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
+    )
 
 
 class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -35,7 +42,6 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         hass: HomeAssistant,
         entry: WiseMirrorConfigEntry,
         device: WiseMirrorDevice,
-        scan_interval_seconds: int,
     ) -> None:
         """Create the coordinator for one mirror."""
         super().__init__(
@@ -43,7 +49,7 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN} {device.host}",
-            update_interval=timedelta(seconds=scan_interval_seconds),
+            update_interval=scan_interval(entry),
             # Most polls find nothing changed: don't write every entity's state.
             always_update=False,
         )

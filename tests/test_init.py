@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+from datetime import timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -11,6 +13,7 @@ import pytest
 from custom_components.wisemirror.const import (
     CONF_BSSID,
     CONF_HOST,
+    CONF_SCAN_INTERVAL,
     CONF_USE_HA_LOCATION,
     DOMAIN,
     SERVICE_SET_LOCATION,
@@ -42,7 +45,8 @@ def _device(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry:
 async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    # The location sync runs in the background, not as part of the setup.
+    await hass.async_block_till_done(wait_background_tasks=True)
 
 
 def _second_mirror() -> MockConfigEntry:
@@ -149,9 +153,86 @@ async def test_follows_ha_location(
 async def test_location_already_matches(
     hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
 ) -> None:
-    await hass.config.async_update(latitude=42.6, longitude=-5.5)
+    await hass.config.async_update(latitude=42.6, longitude=-5.5, location_name="León")
     await _setup(hass, _following(config_entry))
     mock_device.set_location.assert_not_called()
+
+
+async def test_location_matches_at_the_precision_sent(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    """The mirror gets 2 decimals: finer differences are no reason to write."""
+    await hass.config.async_update(
+        latitude=42.6012, longitude=-5.4987, location_name="León"
+    )
+    await _setup(hass, _following(config_entry))
+    mock_device.set_location.assert_not_called()
+
+
+async def test_a_new_location_name_is_synced(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    await hass.config.async_update(latitude=42.6, longitude=-5.5, location_name="Casa")
+    await _setup(hass, _following(config_entry))
+    mock_device.set_location.assert_called_once_with("Casa", 42.6, -5.5)
+
+
+async def test_setup_does_not_wait_for_the_location_sync(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    released = asyncio.Event()
+
+    async def _slow_write(*_args: Any) -> bool:
+        await released.wait()
+        return True
+
+    mock_device.set_location.side_effect = _slow_write
+    await hass.config.async_update(latitude=40.4, longitude=-3.7)
+    entry = _following(config_entry)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+    mock_device.set_location.assert_awaited_once()
+    released.set()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_the_shared_poll_interval_moves_into_each_mirror(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    config_entry: MockConfigEntry,
+    hass_storage: dict[str, Any],
+) -> None:
+    """The interval once shared by all mirrors becomes each mirror's own."""
+    hass_storage["wisemirror.global_config"] = {
+        "version": 1,
+        "key": "wisemirror.global_config",
+        "data": {CONF_SCAN_INTERVAL: 30},
+    }
+    second = _second_mirror()
+    second.add_to_hass(hass)
+    await _setup(hass, config_entry)
+    for entry in (config_entry, second):
+        assert entry.options[CONF_SCAN_INTERVAL] == 30
+        assert entry.runtime_data.update_interval == timedelta(seconds=30)
+    assert "wisemirror.global_config" not in hass_storage
+
+
+async def test_each_mirror_has_its_own_poll_interval(
+    hass: HomeAssistant, mock_device: MagicMock, config_entry: MockConfigEntry
+) -> None:
+    second = _second_mirror()
+    second.add_to_hass(hass)
+    await _setup(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_SCAN_INTERVAL: 120, CONF_USE_HA_LOCATION: False}
+    )
+    await hass.async_block_till_done()
+    assert config_entry.runtime_data.update_interval == timedelta(seconds=120)
+    assert second.runtime_data.update_interval == timedelta(seconds=60)
+    assert CONF_SCAN_INTERVAL not in second.options
 
 
 async def test_location_sync_disabled(

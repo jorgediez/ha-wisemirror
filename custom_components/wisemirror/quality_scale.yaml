@@ -6,7 +6,7 @@ rules:
   action-setup: done
   appropriate-polling:
     status: done
-    comment: 60 s by default, set once for all mirrors in the options.
+    comment: 60 s by default, adjustable per mirror in the options.
   brands: done
   common-modules: done
   config-flow: done
