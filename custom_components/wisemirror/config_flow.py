@@ -33,8 +33,9 @@ from .const import (
     MAX_SCAN_INTERVAL_SECONDS,
     MIN_SCAN_INTERVAL_SECONDS,
 )
+from .discovery import async_discover_mirrors
 from .global_config import async_get_scan_interval, async_set_scan_interval
-from .protocol import WiseMirrorDevice, discover
+from .protocol import WiseMirrorDevice
 
 CONF_DEVICE = "device"
 MANUAL = "manual"
@@ -81,7 +82,7 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        found = await self.hass.async_add_executor_job(discover)
+        found = await async_discover_mirrors(self.hass)
         configured = self._async_current_ids()
         self._discovered = {
             m["bssid"]: m
@@ -120,7 +121,7 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST].strip()
             device = WiseMirrorDevice(host=host)
             try:
-                state = await self.hass.async_add_executor_job(device.poll)
+                state = await device.poll()
             except OSError:
                 errors["base"] = "cannot_connect"
             else:
@@ -152,7 +153,7 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST].strip()
             device = WiseMirrorDevice(host=host)
             try:
-                state = await self.hass.async_add_executor_job(device.poll)
+                state = await device.poll()
             except OSError:
                 errors["base"] = "cannot_connect"
             else:

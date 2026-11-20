@@ -86,9 +86,7 @@ rules:
     comment: Each config entry is one mirror.
 
   # Platinum
-  async-dependency:
-    status: todo
-    comment: The protocol client uses blocking sockets, run in the executor.
+  async-dependency: done
   inject-websession:
     status: exempt
     comment: The mirror speaks UDP, not HTTP.

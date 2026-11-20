@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from copy import deepcopy
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -93,18 +93,19 @@ def mock_device(state: dict[str, Any]) -> Generator[MagicMock]:
     Yields a namespace whose attributes are the mocks (poll, set_*, discover).
     """
     mocks = MagicMock()
-    mocks.poll.side_effect = lambda: deepcopy(state)
+    mocks.poll = AsyncMock(side_effect=lambda: deepcopy(state))
     patches = [patch.object(WiseMirrorDevice, "poll", mocks.poll)]
     for name in SETTERS:
-        getattr(mocks, name).return_value = True
+        setattr(mocks, name, AsyncMock(return_value=True))
         patches.append(patch.object(WiseMirrorDevice, name, getattr(mocks, name)))
-    mocks.discover.return_value = [dict(DISCOVERED)]
-    patches.append(
-        patch("custom_components.wisemirror.config_flow.discover", mocks.discover)
-    )
-    patches.append(
-        patch("custom_components.wisemirror.coordinator.discover", mocks.discover)
-    )
+    mocks.discover = AsyncMock(return_value=[dict(DISCOVERED)])
+    for module in ("config_flow", "coordinator"):
+        patches.append(
+            patch(
+                f"custom_components.wisemirror.{module}.async_discover_mirrors",
+                mocks.discover,
+            )
+        )
     for p in patches:
         p.start()
     yield mocks
