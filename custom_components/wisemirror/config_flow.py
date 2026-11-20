@@ -28,13 +28,13 @@ from .const import (
     CONF_MODEL,
     CONF_SCAN_INTERVAL,
     CONF_USE_HA_LOCATION,
+    DEFAULT_SCAN_INTERVAL_SECONDS,
     DEFAULT_USE_HA_LOCATION,
     DOMAIN,
     MAX_SCAN_INTERVAL_SECONDS,
     MIN_SCAN_INTERVAL_SECONDS,
 )
 from .discovery import async_discover_mirrors
-from .global_config import async_get_scan_interval, async_set_scan_interval
 from .protocol import WiseMirrorDevice
 
 CONF_DEVICE = "device"
@@ -184,25 +184,26 @@ class WiseMirrorConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class WiseMirrorOptionsFlow(OptionsFlow):
-    """Options: poll interval (integration-wide) + follow HA's home location (per mirror)."""
+    """Options of one mirror: poll interval, and following HA's home location."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Set the poll interval and whether to follow HA's location."""
         if user_input is not None:
-            # Poll interval is integration-wide: persisted globally, applied to all mirrors.
-            await async_set_scan_interval(
-                self.hass, int(user_input[CONF_SCAN_INTERVAL])
-            )
             return self.async_create_entry(
-                data={CONF_USE_HA_LOCATION: user_input[CONF_USE_HA_LOCATION]},
+                data={
+                    CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+                    CONF_USE_HA_LOCATION: user_input[CONF_USE_HA_LOCATION],
+                },
             )
 
         current_loc = self.config_entry.options.get(
             CONF_USE_HA_LOCATION, DEFAULT_USE_HA_LOCATION
         )
-        current_interval = await async_get_scan_interval(self.hass)
+        current_interval = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS
+        )
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(

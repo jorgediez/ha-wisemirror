@@ -253,6 +253,13 @@ async def test_set_location_payload(fake_socket) -> None:
     assert urllib.parse.unquote(frame[8:-2].decode()).startswith("León(")
 
 
+async def test_set_location_rounds_the_coordinates(fake_socket) -> None:
+    """The mirror sends its location to an online weather service: about 1 km."""
+    fake_socket.replies = [_write_ack(0x0B)]
+    assert await _mirror().set_location("León", 42.598765, -5.567891)
+    assert fake_socket.sent[0][0][8:-2] == b"Le%C3%B3n(42.6,-5.57)()"
+
+
 async def test_poll_real_replies(fake_socket) -> None:
     fake_socket.replies = [PROBE_REPLY, REAL_SETTINGS, REAL_WEATHER]
     state = await _mirror().poll()

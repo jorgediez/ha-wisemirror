@@ -122,7 +122,10 @@ async def test_options_flow(
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert config_entry.options == {CONF_USE_HA_LOCATION: True}
+    assert config_entry.options == {
+        CONF_SCAN_INTERVAL: 30,
+        CONF_USE_HA_LOCATION: True,
+    }
 
     # options changed -> entry reloaded with a new coordinator using the new interval
     assert config_entry.runtime_data is not coordinator

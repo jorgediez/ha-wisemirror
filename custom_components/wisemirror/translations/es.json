@@ -39,7 +39,7 @@
           "use_ha_location": "Seguir la ubicación de casa de Home Assistant"
         },
         "data_description": {
-          "scan_interval": "Cada cuánto se consulta a los espejos para detectar cambios. Se aplica a todos los dispositivos WiseMirror. Por defecto, 60 s.",
+          "scan_interval": "Cada cuánto se consulta a este espejo para detectar cambios hechos en otro sitio (app, botones). Por defecto, 60 s.",
           "use_ha_location": "Si está activado, la ubicación meteorológica del espejo se mantiene sincronizada con la ubicación de casa configurada en Home Assistant. Desactívalo para fijarla manualmente (con la acción Establecer ubicación)."
         }
       }
@@ -113,8 +113,8 @@
       "description": "Establece la ubicación meteorológica del espejo (nombre de la ciudad y coordenadas).",
       "fields": {
         "name": { "name": "Nombre de la ciudad", "description": "Nombre a mostrar para la ubicación." },
-        "latitude": { "name": "Latitud", "description": "Latitud en grados decimales." },
-        "longitude": { "name": "Longitud", "description": "Longitud en grados decimales." }
+        "latitude": { "name": "Latitud", "description": "Latitud en grados decimales. Se envía redondeada a 2 decimales (alrededor de 1 km)." },
+        "longitude": { "name": "Longitud", "description": "Longitud en grados decimales. Se envía redondeada a 2 decimales (alrededor de 1 km)." }
       }
     }
   }

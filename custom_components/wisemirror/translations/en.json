@@ -39,7 +39,7 @@
           "use_ha_location": "Follow Home Assistant's home location"
         },
         "data_description": {
-          "scan_interval": "How often every mirror is polled for changes. Applies to all WiseMirror devices (integration-wide). Default 60 s.",
+          "scan_interval": "How often this mirror is polled for changes made elsewhere (app, buttons). Default 60 s.",
           "use_ha_location": "When on, the mirror's weather location is kept in sync with Home Assistant's configured home location. Turn off to set the location manually (via the Set location action)."
         }
       }
@@ -113,8 +113,8 @@
       "description": "Sets the mirror's weather location (city name and coordinates).",
       "fields": {
         "name": { "name": "City name", "description": "Display name for the location." },
-        "latitude": { "name": "Latitude", "description": "Latitude in decimal degrees." },
-        "longitude": { "name": "Longitude", "description": "Longitude in decimal degrees." }
+        "latitude": { "name": "Latitude", "description": "Latitude in decimal degrees. Sent rounded to 2 decimals (about 1 km)." },
+        "longitude": { "name": "Longitude", "description": "Longitude in decimal degrees. Sent rounded to 2 decimals (about 1 km)." }
       }
     }
   }

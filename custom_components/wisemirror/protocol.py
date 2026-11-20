@@ -43,6 +43,10 @@ _WIRE = {
 SERVER_TO_RAW = {"auto": 255, "no1": 1, "no2": 2, "no3": 3, "no4": 0, "no5": 4}
 RAW_TO_SERVER = {v: k for k, v in SERVER_TO_RAW.items()}
 
+# The mirror sends its location to an online weather service: 2 decimals (about
+# 1 km) is plenty for a forecast.
+LOCATION_DECIMALS = 2
+
 
 _HEADER = 0xA5
 _TRAILER = 0x5A
@@ -417,7 +421,12 @@ class WiseMirrorDevice:
     async def set_location(
         self, name: str, lat: float, lon: float, accu_key: str = ""
     ) -> bool:
-        """Set the location the mirror shows weather for."""
+        """Set the location the mirror shows weather for.
+
+        The mirror passes it on to an online weather service, so the coordinates
+        are rounded first.
+        """
+        lat, lon = round(lat, LOCATION_DECIMALS), round(lon, LOCATION_DECIMALS)
         body = f"{urllib.parse.quote(name)}({lat},{lon})({accu_key})".encode()
         payload = bytes([(len(body) >> 8) & 0xFF, len(body) & 0xFF]) + body
         return await self._ok(31, payload)

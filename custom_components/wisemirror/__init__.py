@@ -12,6 +12,7 @@ from homeassistant.core import Event, HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import async_extract_config_entry_ids
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -20,18 +21,21 @@ from .const import (
     ATTR_LONGITUDE,
     CONF_BSSID,
     CONF_HOST,
+    CONF_SCAN_INTERVAL,
     CONF_USE_HA_LOCATION,
     DEFAULT_USE_HA_LOCATION,
     DOMAIN,
+    LEGACY_STORAGE_KEY,
+    LEGACY_STORAGE_VERSION,
     SERVICE_SET_LOCATION,
 )
 from .coordinator import (
     WiseMirrorConfigEntry,
     WiseMirrorCoordinator,
     async_loaded_coordinators,
+    scan_interval,
 )
-from .global_config import async_get_scan_interval, async_remove_global_config
-from .protocol import WiseMirrorDevice
+from .protocol import LOCATION_DECIMALS, WiseMirrorDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +74,7 @@ SET_LOCATION_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register integration-wide services."""
+    await _async_migrate_shared_scan_interval(hass)
 
     async def _handle_set_location(call: ServiceCall) -> None:
         if _EXTRACT_TAKES_HASS:
@@ -99,21 +104,40 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+async def _async_migrate_shared_scan_interval(hass: HomeAssistant) -> None:
+    """Give each mirror the poll interval once shared by all of them.
+
+    Earlier releases kept one interval for every mirror in a store of its own.
+    """
+    store: Store[dict[str, int]] = Store(
+        hass, LEGACY_STORAGE_VERSION, LEGACY_STORAGE_KEY
+    )
+    if (saved := await store.async_load()) is None:
+        return
+    if (seconds := saved.get(CONF_SCAN_INTERVAL)) is not None:
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            if CONF_SCAN_INTERVAL not in entry.options:
+                hass.config_entries.async_update_entry(
+                    entry, options={**entry.options, CONF_SCAN_INTERVAL: seconds}
+                )
+    await store.async_remove()
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -> bool:
     """Set up WiseMirror from a config entry."""
     device = WiseMirrorDevice(
         host=entry.data[CONF_HOST], bssid=entry.data.get(CONF_BSSID)
     )
-    scan_interval = await async_get_scan_interval(hass)
-    coordinator = WiseMirrorCoordinator(hass, entry, device, scan_interval)
+    coordinator = WiseMirrorCoordinator(hass, entry, device)
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Reload when the effective per-mirror options change (not on data-only updates
-    # such as the host being rewritten after an IP change, nor when an unset option
-    # is first saved with its default value).
+    # Reload when following HA's location is turned on or off (not on data-only
+    # updates such as the host being rewritten after an IP change, nor when an
+    # unset option is first saved with its default value). A new poll interval
+    # applies without a reload.
     use_ha_location = entry.options.get(CONF_USE_HA_LOCATION, DEFAULT_USE_HA_LOCATION)
 
     async def _async_entry_updated(
@@ -124,12 +148,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -
             != use_ha_location
         ):
             await hass.config_entries.async_reload(entry.entry_id)
+            return
+        if (interval := scan_interval(entry)) != coordinator.update_interval:
+            coordinator.update_interval = interval
+            await coordinator.async_request_refresh()
 
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
 
-    # Follow Home Assistant's home location, if enabled.
+    # Follow Home Assistant's home location, if enabled. In the background: a
+    # slow write shouldn't hold up the setup.
     if entry.options.get(CONF_USE_HA_LOCATION, DEFAULT_USE_HA_LOCATION):
-        await _async_sync_ha_location(hass, coordinator)
+        entry.async_create_background_task(
+            hass,
+            _async_sync_ha_location(hass, coordinator),
+            f"{DOMAIN} location sync {entry.entry_id}",
+        )
 
         async def _on_core_config(_event: Event) -> None:
             await _async_sync_ha_location(hass, coordinator)
@@ -144,7 +177,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -
 async def _async_sync_ha_location(
     hass: HomeAssistant, coordinator: WiseMirrorCoordinator
 ) -> None:
-    """Push HA's home lat/lon to the mirror if it differs from the stored one."""
+    """Push HA's home location to the mirror if it differs from the mirror's.
+
+    Compared at the precision the mirror is sent, along with the name.
+    """
     lat = hass.config.latitude
     lon = hass.config.longitude
     if lat is None or lon is None or (lat == 0 and lon == 0):
@@ -153,10 +189,11 @@ async def _async_sync_ha_location(
     data = coordinator.data or {}
     cur_lat, cur_lon = data.get("location_lat"), data.get("location_lon")
     if (
-        cur_lat is not None
+        data.get("location") == name
+        and cur_lat is not None
         and cur_lon is not None
-        and round(cur_lat, 4) == round(lat, 4)
-        and round(cur_lon, 4) == round(lon, 4)
+        and round(cur_lat, LOCATION_DECIMALS) == round(lat, LOCATION_DECIMALS)
+        and round(cur_lon, LOCATION_DECIMALS) == round(lon, LOCATION_DECIMALS)
     ):
         return  # already matches
     try:
@@ -170,14 +207,3 @@ async def _async_sync_ha_location(
 async def async_unload_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-
-async def async_remove_entry(hass: HomeAssistant, entry: WiseMirrorConfigEntry) -> None:
-    """Drop the shared global settings once the last mirror is removed."""
-    remaining = [
-        e
-        for e in hass.config_entries.async_entries(DOMAIN)
-        if e.entry_id != entry.entry_id
-    ]
-    if not remaining:
-        await async_remove_global_config(hass)

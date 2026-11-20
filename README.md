@@ -9,8 +9,10 @@
 Local control of the **weather-station display** built into smart bathroom mirrors that are managed
 with the **WiseMirror** mobile app (sold under brands such as **Alasta**, **BYECOLD** or **GS Mirror**).
 
-Fully local: no cloud account, no internet connection needed. Home Assistant talks to each
-mirror directly over UDP on your LAN.
+Local: Home Assistant talks to each mirror directly over UDP on your LAN, with no cloud account
+and no internet connection needed. The mirror itself goes online for its weather forecast, for the
+location it's set to; when Home Assistant sets that location, it rounds the coordinates to about
+1 km first.
 
 <img src="custom_components/wisemirror/brand/icon.png" alt="WiseMirror icon" width="96">
 
@@ -99,7 +101,7 @@ Open **Configure** on any mirror:
 
 | Option | Scope | Default | Description |
 |---|---|---|---|
-| Poll interval | All mirrors | 60 s | How often mirrors are polled for changes made elsewhere (app, buttons). 10–3600 s. Each poll is just a few small UDP packets. |
+| Poll interval | This mirror | 60 s | How often the mirror is polled for changes made elsewhere (app, buttons). 10–3600 s. Each poll is just a few small UDP packets. |
 | Follow Home Assistant's home location | This mirror | Off | Keeps the mirror's weather location in sync with Home Assistant's home location (Settings → System → General). While it's off, the integration never changes the location: the one picked in the WiseMirror app stays. |
 
 ## Entities
@@ -143,8 +145,12 @@ data:
   longitude: -3.7038
 ```
 
+The coordinates are rounded to 2 decimals (about 1 km) before they're sent: the mirror passes them
+on to an online weather service.
+
 If **Follow Home Assistant's home location** is on, a manual location will be overwritten the next
-time Home Assistant's home location changes. Turn the option off to manage the location yourself.
+time Home Assistant starts or its home location changes. Turn the option off to manage the location
+yourself.
 
 ## Tips
 
@@ -191,8 +197,7 @@ automation:
 
 ## Removal
 
-1. **Settings → Devices & services → WiseMirror**, then **⋮ → Delete** on each mirror. Deleting
-   the last one also deletes the integration-wide poll interval.
+1. **Settings → Devices & services → WiseMirror**, then **⋮ → Delete** on each mirror.
 2. If you installed it from the Marketplace, open **WiseMirror** there and select
    **⋮ → Uninstall**. With HACS, remove it there. Otherwise delete
    `<config>/custom_components/wisemirror`.
