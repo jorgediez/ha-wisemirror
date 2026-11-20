@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import threading
 from unittest.mock import patch
 import urllib.parse
 
@@ -366,3 +367,39 @@ def test_refused_reply_is_no_reply(fake_socket) -> None:
     fake_socket.replies = [ConnectionRefusedError]
     assert WiseMirrorDevice("192.168.1.244").set_brightness(30) is False
     assert len(fake_socket.sent) == 1  # nobody is listening: no point retrying
+
+
+def test_poll_and_writes_do_not_interleave() -> None:
+    """The mirror handles one command at a time: a write waits for a poll."""
+    device = WiseMirrorDevice("192.168.1.244")
+    in_poll, release = threading.Event(), threading.Event()
+    sent: list[int] = []
+
+    def probe() -> dict:
+        in_poll.set()
+        release.wait(5)
+        return {"bssid": "30:30:f9:f3:ce:b8", "model": "2M09"}
+
+    def send(logical_id: int, payload: bytes) -> bytes:
+        sent.append(logical_id)
+        return b"\x00"
+
+    with (
+        patch.object(device, "_probe", probe),
+        patch.object(device, "_send", send),
+    ):
+        poll = threading.Thread(target=device.poll)
+        write = threading.Thread(target=device.set_brightness, args=(5,))
+        poll.start()
+        try:
+            assert in_poll.wait(5)
+            write.start()
+            write.join(0.3)
+            sent_during_poll = list(sent)
+        finally:
+            release.set()
+            poll.join(5)
+            if write.ident is not None:  # started
+                write.join(5)
+    assert sent_during_poll == []  # the write waited for the poll
+    assert sent == [36, 41, 6]

@@ -169,3 +169,88 @@ async def test_fahrenheit_unit(
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
     assert hass.states.get(f"select.{PREFIX}_temperature_unit").state == "fahrenheit"
+
+
+# Each of these writes a command that also carries another setting, read by the
+# same poll reply. The weather settings are not the defaults (off, Auto), so a
+# default sent in their place shows.
+WEATHER = {"two_day": True, "server": "no2", "server_raw": 2}
+HALF_WRITES = [
+    pytest.param(
+        ("two_day", "today_weather", "server", "server_raw"),
+        ("switch", "turn_off", "switch.{p}_two_day_weather", {}),
+        "set_weather",
+        (False, 2),
+        id="two-day",
+    ),
+    pytest.param(
+        ("two_day", "today_weather", "server", "server_raw"),
+        ("select", "select_option", "select.{p}_weather_source", {"option": "no4"}),
+        "set_weather",
+        (True, 0),
+        id="weather-source",
+    ),
+    pytest.param(
+        ("night_on", "night_start", "night_end", "night_light"),
+        ("time", "set_value", "time.{p}_night_mode_start", {"time": "23:15:00"}),
+        "set_night_time",
+        (23, 15, 7, 0),
+        id="night-start",
+    ),
+    pytest.param(
+        ("night_on", "night_start", "night_end", "night_light"),
+        ("time", "set_value", "time.{p}_night_mode_end", {"time": "06:45:00"}),
+        "set_night_time",
+        (22, 30, 6, 45),
+        id="night-end",
+    ),
+]
+
+
+async def _poll_without(
+    setup_mirror: MagicMock, config_entry: MockConfigEntry, keys: tuple[str, ...]
+) -> dict[str, Any]:
+    """Make the last poll miss keys, as when one reply of a poll is lost."""
+    full = {**setup_mirror.poll(), **WEATHER}
+    partial = {k: v for k, v in full.items() if k not in keys}
+    setup_mirror.poll.side_effect = lambda: dict(partial)
+    await config_entry.runtime_data.async_refresh()
+    assert not keys & config_entry.runtime_data.data.keys()
+    return full
+
+
+@pytest.mark.parametrize(("missing", "call", "setter", "args"), HALF_WRITES)
+async def test_half_write_after_a_partial_poll_reads_again(
+    hass: HomeAssistant,
+    setup_mirror: MagicMock,
+    config_entry: MockConfigEntry,
+    missing: tuple[str, ...],
+    call: tuple[str, str, str, dict[str, Any]],
+    setter: str,
+    args: tuple[Any, ...],
+) -> None:
+    """The other half is read again before writing, not replaced by a default."""
+    full = await _poll_without(setup_mirror, config_entry, missing)
+    setup_mirror.poll.side_effect = lambda: dict(full)  # the next read gets it
+    domain, service, entity, data = call
+    await _call(hass, domain, service, entity.format(p=PREFIX), **data)
+    getattr(setup_mirror, setter).assert_called_once_with(*args)
+
+
+@pytest.mark.parametrize(("missing", "call", "setter", "args"), HALF_WRITES)
+async def test_half_write_is_refused_while_the_other_half_is_unknown(
+    hass: HomeAssistant,
+    setup_mirror: MagicMock,
+    config_entry: MockConfigEntry,
+    missing: tuple[str, ...],
+    call: tuple[str, str, str, dict[str, Any]],
+    setter: str,
+    args: tuple[Any, ...],
+) -> None:
+    """Without the other half, nothing is sent: a guess would overwrite it."""
+    await _poll_without(setup_mirror, config_entry, missing)
+    domain, service, entity, data = call
+    with pytest.raises(HomeAssistantError) as err:
+        await _call(hass, domain, service, entity.format(p=PREFIX), **data)
+    assert err.value.translation_key == "current_state_unknown"
+    getattr(setup_mirror, setter).assert_not_called()
