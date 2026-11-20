@@ -96,9 +96,20 @@ class WiseMirrorCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _async_update_device(self, data: dict[str, Any]) -> None:
         """Keep the device's firmware and model as the mirror reports them."""
-        ident = self.config_entry.unique_id or self.device.host
+        identifier = (DOMAIN, self.config_entry.unique_id or self.device.host)
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, ident)})
+        # Search this entry's own devices: async_get_device is deprecated from
+        # 2026.11, and its replacements don't exist in older releases.
+        device = next(
+            (
+                device
+                for device in dr.async_entries_for_config_entry(
+                    registry, self.config_entry.entry_id
+                )
+                if identifier in device.identifiers
+            ),
+            None,
+        )
         if device is None:  # not created yet: the entities will create it
             return
         changes = {

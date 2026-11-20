@@ -399,12 +399,15 @@ async def test_firmware_update_reaches_the_device(
     mock_device: MagicMock,
     config_entry: MockConfigEntry,
     state: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     await _setup(hass, config_entry)
     assert _device(hass, config_entry).sw_version == "V1.9.250215"
     state["version"] = "V2.0.260101"
     await config_entry.runtime_data.async_refresh()
     assert _device(hass, config_entry).sw_version == "V2.0.260101"
+    # The device is looked up without the registry calls deprecated in 2026.11.
+    assert "deprecated" not in caplog.text
 
 
 async def test_an_unchanged_poll_updates_no_entity(
